@@ -6,13 +6,14 @@ import { NextResponse } from "next/server";
 //
 // IMPORTANT — Compulife authorizes exactly one server IP per
 // COMPULIFEAUTHORIZATIONID (see compulife-api-samples/readme.html, section 1).
-// Moving this route to a different host/IP (e.g. a new Vercel deployment)
-// requires calling Compulife to reset the ID to the new IP. Confirm with the
-// client which server will hold the authorized ID before going live, and
-// whether Vercel's serverless egress IPs are stable enough or a fixed-IP
-// proxy is needed.
+// Vercel's serverless functions rotate outbound IPs per invocation, so
+// requests are relayed through compulife-proxy/ (deployed on Railway with a
+// static outbound IP) whenever COMPULIFE_PROXY_URL is set. Without it, this
+// route calls Compulife directly — fine for local dev, not for production.
 const COMPULIFE_AUTHORIZATION_ID = process.env.COMPULIFE_AUTHORIZATION_ID;
 const COMPULIFE_REQUEST_URL = "https://www.compulifeapi.com/api/request/";
+const COMPULIFE_PROXY_URL = process.env.COMPULIFE_PROXY_URL;
+const COMPULIFE_PROXY_SECRET = process.env.COMPULIFE_PROXY_SECRET;
 
 // First Avenue Financial is only licensed to quote in these provinces.
 const ALLOWED_PROVINCES = ["Alberta", "British Columbia"];
@@ -152,10 +153,18 @@ export async function POST(request: Request) {
       State: PROVINCE_ABBREVIATION[province],
     };
 
-    const response = await fetch(
-      `${COMPULIFE_REQUEST_URL}?COMPULIFE=${encodeURIComponent(JSON.stringify(compulifeRequest))}`,
-      { method: "GET" },
-    );
+    const compulifeUrl = `${COMPULIFE_REQUEST_URL}?COMPULIFE=${encodeURIComponent(JSON.stringify(compulifeRequest))}`;
+
+    const response = COMPULIFE_PROXY_URL
+      ? await fetch(`${COMPULIFE_PROXY_URL}/forward`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-proxy-secret": COMPULIFE_PROXY_SECRET ?? "",
+          },
+          body: JSON.stringify({ url: compulifeUrl }),
+        })
+      : await fetch(compulifeUrl, { method: "GET" });
 
     if (!response.ok) {
       console.error("Compulife API error", response.status, await response.text().catch(() => ""));
