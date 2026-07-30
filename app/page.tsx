@@ -242,7 +242,7 @@ export default function Home() {
           email: form.email,
           phone: form.phone,
           product: `Term Life Insurance (${termLabel}, $${form.faceAmount})`,
-          message: `Province: ${form.province}. Estimated premium: ${quoteData.monthlyPremium}/month.`,
+          message: `Province: ${form.province}. Estimated premium: ${quoteData.monthlyPremium}/month with ${quoteData.companyName} (${quoteData.productName}).`,
           consent: form.consent,
           ...attribution,
         }),
