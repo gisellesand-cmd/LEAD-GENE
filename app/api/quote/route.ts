@@ -14,6 +14,25 @@ import { NextResponse } from "next/server";
 const COMPULIFE_AUTHORIZATION_ID = process.env.COMPULIFE_AUTHORIZATION_ID;
 const COMPULIFE_REQUEST_URL = "https://www.compulifeapi.com/api/request/";
 
+// First Avenue Financial is only licensed to quote in these provinces.
+const ALLOWED_PROVINCES = ["Alberta", "British Columbia"];
+
+// Compulife's ZipCode field rejects a province name ("The postal code
+// entered is invalid") — it wants an actual postal code, used for
+// provincial premium tax rating, not the applicant's real address. Our form
+// only collects province, so we send one representative postal code per
+// allowed province as a stand-in. This is fine for a preliminary estimate;
+// flag to the client if exact-postal-code rating ever matters here.
+const PROVINCE_REFERENCE_POSTAL_CODE: Record<string, string> = {
+  Alberta: "T2P1J9",
+  "British Columbia": "V6B1A1",
+};
+
+const PROVINCE_ABBREVIATION: Record<string, string> = {
+  Alberta: "AB",
+  "British Columbia": "BC",
+};
+
 type QuotePayload = {
   birthDay?: string | number;
   birthMonth?: string | number;
@@ -93,6 +112,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!ALLOWED_PROVINCES.includes(province)) {
+      return NextResponse.json(
+        { error: "Quotes are currently only available in Alberta and British Columbia." },
+        { status: 400 },
+      );
+    }
+
     if (!COMPULIFE_AUTHORIZATION_ID) {
       return NextResponse.json(buildMockResult(faceAmount, termCategory));
     }
@@ -104,8 +130,12 @@ export async function POST(request: Request) {
     // TODO: confirm whether Compulife expects a province code (via its
     // ProvinceList endpoint) in a dedicated field, rather than the province
     // name passed through ZipCode below.
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const remoteIp = forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
+
     const compulifeRequest = {
       COMPULIFEAUTHORIZATIONID: COMPULIFE_AUTHORIZATION_ID,
+      REMOTE_IP: remoteIp,
       BirthDay: String(birthDay),
       BirthMonth: String(birthMonth),
       BirthYear: String(birthYear),
@@ -118,7 +148,8 @@ export async function POST(request: Request) {
       ModeUsed: "M",
       SortOverride1: "A",
       LANGUAGE: "E",
-      ZipCode: province,
+      ZipCode: PROVINCE_REFERENCE_POSTAL_CODE[province],
+      State: PROVINCE_ABBREVIATION[province],
     };
 
     const response = await fetch(
@@ -132,8 +163,17 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    const results = Array.isArray(data) ? data : Array.isArray(data?.Results) ? data.Results : [];
-    const top = results[0];
+
+    if (data?.error) {
+      console.error("Compulife API returned an error", data.error);
+      return NextResponse.json(buildMockResult(faceAmount, termCategory));
+    }
+
+    // Compulife nests results under Compulife_ComparisonResults.Compulife_Results,
+    // sorted cheapest-first (SortOverride1: "A"), with "Compulife_"-prefixed field
+    // names on each row.
+    const results = data?.Compulife_ComparisonResults?.Compulife_Results;
+    const top = Array.isArray(results) ? results[0] : undefined;
 
     if (!top) {
       return NextResponse.json(buildMockResult(faceAmount, termCategory));
@@ -141,9 +181,9 @@ export async function POST(request: Request) {
 
     const result: QuoteResult = {
       mock: false,
-      monthlyPremium: formatCurrency(Number(top.Premium ?? top.MonthlyPremium ?? 0)),
-      companyName: top.CompanyName ?? top.Name ?? "Compulife",
-      productName: top.ProductName ?? TERM_LABELS[termCategory] ?? "Term Life",
+      monthlyPremium: formatCurrency(Number(top.Compulife_premiumM ?? 0)),
+      companyName: top.Compulife_company ?? "Compulife",
+      productName: top.Compulife_product?.trim() || TERM_LABELS[termCategory] || "Term Life",
       coverageAmount: formatCurrency(faceAmount),
       termLabel: TERM_LABELS[termCategory] ?? "Term Life",
       note: "Live quote from Compulife.",

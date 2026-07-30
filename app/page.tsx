@@ -23,21 +23,7 @@ const termOptions = [
   { value: "E", label: "To age 100 (level)" },
 ];
 
-const provinceOptions = [
-  "Alberta",
-  "British Columbia",
-  "Manitoba",
-  "New Brunswick",
-  "Newfoundland and Labrador",
-  "Northwest Territories",
-  "Nova Scotia",
-  "Nunavut",
-  "Ontario",
-  "Prince Edward Island",
-  "Quebec",
-  "Saskatchewan",
-  "Yukon",
-];
+const provinceOptions = ["Alberta", "British Columbia"];
 
 const trustBarItems = [
   { icon: "shield", value: "15", label: "Top Canadian insurers" },
@@ -477,15 +463,15 @@ export default function Home() {
                       </select>
                     </label>
                     <label className="text-sm font-medium text-[#333333]">
-                      Smoker
+                      Smoker / Nicotine User
                       <select
                         name="smoker"
                         value={form.smoker}
                         onChange={handleChange}
                         className="mt-2 w-full rounded-sm border border-[#d0d0d0] bg-white px-3 py-3 text-sm text-[#222] outline-none focus:border-[#71b664] focus:ring-2 focus:ring-[#71b664]/20"
                       >
-                        <option value="N">Non-smoker</option>
-                        <option value="Y">Smoker</option>
+                        <option value="N">Non-smoker / No nicotine use</option>
+                        <option value="Y">Smoker / Nicotine user</option>
                       </select>
                     </label>
                   </div>

@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Source values follow the PRD v3 classification rule (Section 3).
 // meta_lead_ads (native Meta forms) is a later phase (webhook integration);
@@ -58,6 +59,15 @@ export type LeadInput = {
   referrer?: string | null;
 };
 
+// Falls back to a local JSON file when Supabase isn't configured yet, same
+// "clearly labeled mock" pattern as the Compulife quote route.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase: SupabaseClient | null =
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    : null;
+
 const STORE_FILE = path.join(process.cwd(), "data", "leads.json");
 
 async function ensureStoreFile() {
@@ -70,6 +80,15 @@ async function ensureStoreFile() {
 }
 
 export async function readLeads(): Promise<Lead[]> {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("leads")
+      .select("*")
+      .order("pipeline_order", { ascending: true });
+    if (error) throw error;
+    return data as Lead[];
+  }
+
   await ensureStoreFile();
   const content = await readFile(STORE_FILE, "utf8");
   try {
@@ -86,13 +105,10 @@ export async function writeLeads(leads: Lead[]) {
 }
 
 export async function addLead(input: LeadInput): Promise<Lead> {
-  const leads = await readLeads();
   const source = input.source ?? "organic";
-  const lead: Lead = {
-    id: crypto.randomUUID(),
-    created_at: new Date().toISOString(),
+  const base = {
     source,
-    status: source === "manual" ? "manual_entry" : "new",
+    status: (source === "manual" ? "manual_entry" : "new") as LeadStatus,
     full_name: input.fullName.trim(),
     email: input.email.trim(),
     phone: input.phone.trim(),
@@ -111,16 +127,45 @@ export async function addLead(input: LeadInput): Promise<Lead> {
     notes: "",
     assigned_to: null,
     last_contacted_at: null,
-    pipeline_order: leads.length,
     archived: false,
   };
 
-  const nextLeads = [lead, ...leads];
-  await writeLeads(nextLeads);
+  if (supabase) {
+    const { count } = await supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true });
+    const { data, error } = await supabase
+      .from("leads")
+      .insert({ ...base, pipeline_order: count ?? 0 })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Lead;
+  }
+
+  const leads = await readLeads();
+  const lead: Lead = {
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+    ...base,
+    pipeline_order: leads.length,
+  };
+  await writeLeads([lead, ...leads]);
   return lead;
 }
 
 export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead | null> {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("leads")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) return null;
+    return data as Lead;
+  }
+
   const leads = await readLeads();
   const target = leads.find((lead) => lead.id === id);
 
