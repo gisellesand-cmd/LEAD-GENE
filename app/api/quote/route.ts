@@ -6,14 +6,16 @@ import { NextResponse } from "next/server";
 //
 // IMPORTANT — Compulife authorizes exactly one server IP per
 // COMPULIFEAUTHORIZATIONID (see compulife-api-samples/readme.html, section 1).
-// Vercel's serverless functions rotate outbound IPs per invocation, so
-// requests are relayed through compulife-proxy/ (deployed on Railway with a
-// static outbound IP) whenever COMPULIFE_PROXY_URL is set. Without it, this
-// route calls Compulife directly — fine for local dev, not for production.
+// Vercel's serverless functions rotate outbound IPs per invocation, so this
+// route never calls Compulife directly in production. Instead, when
+// COMPULIFE_API_URL is set, it calls Compulife's own api.php (see
+// compulife-api-samples/compulifeapi/) hosted on the client's WordPress
+// server, which has a fixed IP and holds the Authorization ID itself in its
+// config.php. COMPULIFE_AUTHORIZATION_ID below is only used for the direct-
+// call fallback in local development.
 const COMPULIFE_AUTHORIZATION_ID = process.env.COMPULIFE_AUTHORIZATION_ID;
 const COMPULIFE_REQUEST_URL = "https://www.compulifeapi.com/api/request/";
-const COMPULIFE_PROXY_URL = process.env.COMPULIFE_PROXY_URL;
-const COMPULIFE_PROXY_SECRET = process.env.COMPULIFE_PROXY_SECRET;
+const COMPULIFE_API_URL = process.env.COMPULIFE_API_URL;
 
 // First Avenue Financial is only licensed to quote in these provinces.
 const ALLOWED_PROVINCES = ["Alberta", "British Columbia"];
@@ -120,7 +122,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!COMPULIFE_AUTHORIZATION_ID) {
+    if (!COMPULIFE_API_URL && !COMPULIFE_AUTHORIZATION_ID) {
       return NextResponse.json(buildMockResult(faceAmount, termCategory));
     }
 
@@ -131,12 +133,7 @@ export async function POST(request: Request) {
     // TODO: confirm whether Compulife expects a province code (via its
     // ProvinceList endpoint) in a dedicated field, rather than the province
     // name passed through ZipCode below.
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const remoteIp = forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
-
-    const compulifeRequest = {
-      COMPULIFEAUTHORIZATIONID: COMPULIFE_AUTHORIZATION_ID,
-      REMOTE_IP: remoteIp,
+    const quoteFields = {
       BirthDay: String(birthDay),
       BirthMonth: String(birthMonth),
       BirthYear: String(birthYear),
@@ -153,18 +150,26 @@ export async function POST(request: Request) {
       State: PROVINCE_ABBREVIATION[province],
     };
 
-    const compulifeUrl = `${COMPULIFE_REQUEST_URL}?COMPULIFE=${encodeURIComponent(JSON.stringify(compulifeRequest))}`;
-
-    const response = COMPULIFE_PROXY_URL
-      ? await fetch(`${COMPULIFE_PROXY_URL}/forward`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-proxy-secret": COMPULIFE_PROXY_SECRET ?? "",
-          },
-          body: JSON.stringify({ url: compulifeUrl }),
-        })
-      : await fetch(compulifeUrl, { method: "GET" });
+    let response: Response;
+    if (COMPULIFE_API_URL) {
+      // api.php injects COMPULIFEAUTHORIZATIONID (from its own config.php)
+      // and REMOTE_IP (from whoever calls it) itself — we only send the
+      // quote fields.
+      const params = new URLSearchParams({ requestType: "request", ...quoteFields });
+      response = await fetch(`${COMPULIFE_API_URL}?${params.toString()}`, { method: "GET" });
+    } else {
+      const forwardedFor = request.headers.get("x-forwarded-for");
+      const remoteIp = forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
+      const compulifeRequest = {
+        COMPULIFEAUTHORIZATIONID: COMPULIFE_AUTHORIZATION_ID,
+        REMOTE_IP: remoteIp,
+        ...quoteFields,
+      };
+      response = await fetch(
+        `${COMPULIFE_REQUEST_URL}?COMPULIFE=${encodeURIComponent(JSON.stringify(compulifeRequest))}`,
+        { method: "GET" },
+      );
+    }
 
     if (!response.ok) {
       console.error("Compulife API error", response.status, await response.text().catch(() => ""));
@@ -173,8 +178,11 @@ export async function POST(request: Request) {
 
     const data = await response.json();
 
-    if (data?.error) {
-      console.error("Compulife API returned an error", data.error);
+    // api.php always answers with HTTP 200 (even on upstream failure) and
+    // falls back to { message: "..." } instead of Compulife's own
+    // { error: "..." } shape — check both.
+    if (data?.error || data?.message) {
+      console.error("Compulife API returned an error", data.error ?? data.message);
       return NextResponse.json(buildMockResult(faceAmount, termCategory));
     }
 
