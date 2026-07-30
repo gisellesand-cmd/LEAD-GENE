@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     const product = typeof body?.product === "string" ? body.product.trim() : "";
     const consent = Boolean(body?.consent);
 
-    if (!fullName || !email || !phone || !consent) {
+    if (!fullName || !email || !consent) {
       return NextResponse.json({ error: "Please complete the required fields." }, { status: 400 });
     }
 
