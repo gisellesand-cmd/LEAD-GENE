@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { addLead, readLeads, type LeadSource } from "@/lib/leads-store";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   if (searchParams.get("view") === "crm") {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const leads = await readLeads();
     return NextResponse.json({ leads });
   }

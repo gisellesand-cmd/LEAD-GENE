@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import type { Lead, LeadSource, LeadStatus } from "@/lib/leads-store";
 
 const stages: Array<{ key: LeadStatus; label: string }> = [
@@ -22,9 +24,17 @@ const sourceLabel: Record<LeadSource, string> = {
 };
 
 export default function CRMPage() {
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/crm/login");
+    router.refresh();
+  };
 
   useEffect(() => {
     const loadLeads = async () => {
@@ -56,6 +66,13 @@ export default function CRMPage() {
           <div className="flex gap-3">
             <Link href="/" className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium">Back to landing</Link>
             <button className="rounded-full bg-[#1d4d31] px-4 py-2 text-sm font-medium text-white">+ Add lead</button>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium"
+            >
+              Sign out
+            </button>
           </div>
         </div>
 
