@@ -14,6 +14,7 @@ const stages: Array<{ key: LeadStatus; label: string }> = [
   { key: "qualified", label: "Qualified" },
   { key: "closed_won", label: "Closed Won" },
   { key: "closed_lost", label: "Closed Lost" },
+  { key: "meta_lead", label: "Meta Leads" },
   { key: "manual_entry", label: "Manual Entry" },
 ];
 
@@ -549,13 +550,6 @@ export default function CRMPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#4b5b41]">CRM</p>
             <h1 className="mt-2 text-3xl font-semibold">Lead pipeline</h1>
-            <button
-              type="button"
-              onClick={() => setShowDeletedModal(true)}
-              className="mt-1 text-sm text-[#8a8578] hover:underline"
-            >
-              View deleted{archivedLeads.length > 0 ? ` (${archivedLeads.length})` : ""}
-            </button>
           </div>
           <div className="flex gap-3">
             <Link href="/" className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium">Back to landing</Link>
@@ -644,6 +638,15 @@ export default function CRMPage() {
                   onDelete={(id) => setPendingDeleteId(id)}
                 />
               ))}
+              <div className="flex items-center justify-center rounded-[1.5rem] border border-dashed border-[#ddd2bf] bg-[#faf7f0] p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowDeletedModal(true)}
+                  className="rounded-full border border-[#d2c8b5] bg-white px-4 py-2 text-sm font-medium"
+                >
+                  View deleted{archivedLeads.length > 0 ? ` (${archivedLeads.length})` : ""}
+                </button>
+              </div>
             </div>
           </DndContext>
 

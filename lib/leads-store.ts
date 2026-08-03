@@ -12,6 +12,7 @@ export type LeadStatus =
   | "qualified"
   | "closed_won"
   | "closed_lost"
+  | "meta_lead"
   | "manual_entry";
 
 export type Lead = {
@@ -122,9 +123,11 @@ export async function writeLeads(leads: Lead[]) {
 
 export async function addLead(input: LeadInput): Promise<Lead> {
   const source = input.source ?? "organic";
+  const initialStatus: LeadStatus =
+    source === "manual" ? "manual_entry" : source === "meta_lead_ads" ? "meta_lead" : "new";
   const base = {
     source,
-    status: (source === "manual" ? "manual_entry" : "new") as LeadStatus,
+    status: initialStatus,
     full_name: input.fullName.trim(),
     email: input.email.trim(),
     phone: input.phone.trim(),

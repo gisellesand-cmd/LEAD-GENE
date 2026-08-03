@@ -8,6 +8,7 @@ const VALID_STATUSES: LeadStatus[] = [
   "qualified",
   "closed_won",
   "closed_lost",
+  "meta_lead",
   "manual_entry",
 ];
 
