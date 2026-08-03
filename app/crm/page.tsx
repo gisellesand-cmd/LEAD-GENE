@@ -36,26 +36,53 @@ async function patchLead(id: string, updates: Record<string, unknown>) {
   return data.lead as Lead;
 }
 
-function LeadCard({ lead, selected, onSelect }: { lead: Lead; selected: boolean; onSelect: () => void }) {
+function LeadCard({
+  lead,
+  selected,
+  onSelect,
+  onDelete,
+}: {
+  lead: Lead;
+  selected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id });
 
   return (
-    <button
+    <div
       ref={setNodeRef}
-      type="button"
-      onClick={onSelect}
       {...listeners}
       {...attributes}
       style={{
         transform: transform ? CSS.Translate.toString(transform) : undefined,
         opacity: isDragging ? 0.4 : 1,
       }}
-      className={`w-full touch-none rounded-[1.25rem] border p-3 text-left shadow-sm transition ${selected ? "border-[#1d4d31] bg-[#f7f2e5]" : "border-[#ebe3d2] bg-[#fcfbf7]"}`}
+      className={`relative w-full touch-none rounded-[1.25rem] border p-3 text-left shadow-sm transition ${selected ? "border-[#1d4d31] bg-[#f7f2e5]" : "border-[#ebe3d2] bg-[#fcfbf7]"}`}
     >
-      <p className="font-semibold">{lead.full_name}</p>
-      <p className="mt-1 text-sm text-[#6b675d]">{lead.product_interest}</p>
-      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8a5f]">{sourceLabel[lead.source]}</p>
-    </button>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="block w-full pr-6 text-left"
+      >
+        <p className="font-semibold">{lead.full_name}</p>
+        <p className="mt-1 text-sm text-[#6b675d]">{lead.product_interest}</p>
+        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8a5f]">{sourceLabel[lead.source]}</p>
+      </button>
+      <button
+        type="button"
+        aria-label="Delete lead"
+        title="Delete"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[#a68f7a] hover:bg-[#f0e6d6] hover:text-[#8a3b2b]"
+      >
+        ×
+      </button>
+    </div>
   );
 }
 
@@ -64,11 +91,13 @@ function StageColumn({
   leads,
   selectedLeadId,
   onSelect,
+  onDelete,
 }: {
   stage: { key: LeadStatus; label: string };
   leads: Lead[];
   selectedLeadId: string | null;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.key });
 
@@ -86,7 +115,13 @@ function StageColumn({
           <p className="rounded-2xl border border-dashed border-[#ddd2bf] p-3 text-sm text-[#7b776d]">No leads yet</p>
         ) : (
           leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} selected={selectedLeadId === lead.id} onSelect={() => onSelect(lead.id)} />
+            <LeadCard
+              key={lead.id}
+              lead={lead}
+              selected={selectedLeadId === lead.id}
+              onSelect={() => onSelect(lead.id)}
+              onDelete={() => onDelete(lead.id)}
+            />
           ))
         )}
       </div>
@@ -382,6 +417,8 @@ export default function CRMPage() {
     [leads, selectedLeadId],
   );
 
+  const archivedLeads = useMemo(() => leads.filter((lead) => lead.archived), [leads]);
+
   const updateLeadLocally = (updated: Lead) => {
     setLeads((prev) => prev.map((lead) => (lead.id === updated.id ? updated : lead)));
   };
@@ -423,6 +460,17 @@ export default function CRMPage() {
       setTimeout(() => setNotesSaved(false), 2000);
     } catch {
       // Leave the textarea as-is; the user can retry the save.
+    }
+  };
+
+  const setArchived = async (leadId: string, archived: boolean) => {
+    const previous = leads;
+    setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, archived } : lead)));
+    try {
+      const updated = await patchLead(leadId, { archived });
+      updateLeadLocally(updated);
+    } catch {
+      setLeads(previous);
     }
   };
 
@@ -515,9 +563,10 @@ export default function CRMPage() {
                 <StageColumn
                   key={stage.key}
                   stage={stage}
-                  leads={leads.filter((lead) => lead.status === stage.key)}
+                  leads={leads.filter((lead) => lead.status === stage.key && !lead.archived)}
                   selectedLeadId={selectedLeadId}
                   onSelect={setSelectedLeadId}
+                  onDelete={(id) => setArchived(id, true)}
                 />
               ))}
             </div>
@@ -568,6 +617,34 @@ export default function CRMPage() {
               </div>
             ) : (
               <p className="text-sm text-[#6b675d]">No lead selected.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-5 shadow-sm">
+          <h2 className="font-semibold">Deleted contacts ({archivedLeads.length})</h2>
+          <div className="mt-3 space-y-2">
+            {archivedLeads.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-[#ddd2bf] p-3 text-sm text-[#7b776d]">No deleted contacts.</p>
+            ) : (
+              archivedLeads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="flex items-center justify-between rounded-xl border border-[#ebe3d2] bg-[#fcfbf7] p-3"
+                >
+                  <div>
+                    <p className="font-medium">{lead.full_name}</p>
+                    <p className="text-sm text-[#6b675d]">{lead.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setArchived(lead.id, false)}
+                    className="rounded-full border border-[#d2c8b5] px-3 py-1 text-sm font-medium"
+                  >
+                    Restore
+                  </button>
+                </div>
+              ))
             )}
           </div>
         </div>
