@@ -211,6 +211,94 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   );
 }
 
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+
+    setSaving(true);
+    const supabase = createClient();
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    setSaving(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setSuccess(true);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-sm space-y-4 rounded-[1.5rem] border border-[#e0d7c3] bg-white p-6 shadow-lg">
+        <h2 className="text-lg font-semibold">Change password</h2>
+
+        {success ? (
+          <>
+            <p className="text-sm text-[#4b8a5f]">Password updated.</p>
+            <div className="flex justify-end">
+              <button type="button" onClick={onClose} className="rounded-full bg-[#1d4d31] px-4 py-2 text-sm font-medium text-white">
+                Done
+              </button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-[#4b4a47]">New password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-[#d4cdbd] px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-[#4b4a47]">Confirm new password</label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-xl border border-[#d4cdbd] px-3 py-2 text-sm"
+              />
+            </div>
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-full bg-[#1d4d31] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {saving ? "Saving..." : "Update password"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LostReasonModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (reason: string) => void }) {
   const [reason, setReason] = useState("");
 
@@ -251,6 +339,7 @@ export default function CRMPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pendingLostDrop, setPendingLostDrop] = useState<string | null>(null);
   const [notesSaved, setNotesSaved] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -341,6 +430,13 @@ export default function CRMPage() {
               className="rounded-full bg-[#1d4d31] px-4 py-2 text-sm font-medium text-white"
             >
               + Add lead
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPasswordModal(true)}
+              className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium"
+            >
+              Change password
             </button>
             <button
               type="button"
@@ -445,6 +541,8 @@ export default function CRMPage() {
           }}
         />
       ) : null}
+
+      {showPasswordModal ? <ChangePasswordModal onClose={() => setShowPasswordModal(false)} /> : null}
 
       {pendingLostDrop ? (
         <LostReasonModal
