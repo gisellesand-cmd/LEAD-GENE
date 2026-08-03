@@ -340,6 +340,8 @@ export default function CRMPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [pendingLostDrop, setPendingLostDrop] = useState<string | null>(null);
   const [notesSaved, setNotesSaved] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -363,6 +365,16 @@ export default function CRMPage() {
     };
 
     void loadLeads();
+
+    const loadUser = async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUserEmail(user?.email ?? null);
+    };
+
+    void loadUser();
   }, []);
 
   const selectedLead = useMemo(
@@ -431,20 +443,49 @@ export default function CRMPage() {
             >
               + Add lead
             </button>
-            <button
-              type="button"
-              onClick={() => setShowPasswordModal(true)}
-              className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium"
-            >
-              Change password
-            </button>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium"
-            >
-              Sign out
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfileMenu((open) => !open)}
+                aria-label="Account menu"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d4d31] text-sm font-semibold text-white"
+              >
+                {userEmail ? userEmail[0].toUpperCase() : "?"}
+              </button>
+
+              {showProfileMenu ? (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Close account menu"
+                    onClick={() => setShowProfileMenu(false)}
+                    className="fixed inset-0 z-40 cursor-default"
+                  />
+                  <div className="absolute right-0 z-50 mt-2 w-56 rounded-2xl border border-[#e0d7c3] bg-white p-2 shadow-lg">
+                    {userEmail ? (
+                      <p className="truncate px-3 py-2 text-xs text-[#7b776d]">{userEmail}</p>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        setShowPasswordModal(true);
+                      }}
+                      className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-[#f7f2e5]"
+                    >
+                      Change password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-[#f7f2e5]"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
 
