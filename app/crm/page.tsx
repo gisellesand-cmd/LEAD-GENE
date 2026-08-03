@@ -368,6 +368,28 @@ function LostReasonModal({ onClose, onConfirm }: { onClose: () => void; onConfir
   );
 }
 
+function DeleteConfirmModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-sm space-y-4 rounded-[1.5rem] border border-[#e0d7c3] bg-white p-6 shadow-lg">
+        <h2 className="text-lg font-semibold">Do you really want to delete this contact?</h2>
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-full border border-[#d2c8b5] px-4 py-2 text-sm font-medium">
+            No
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-full bg-[#8a3b2b] px-4 py-2 text-sm font-medium text-white"
+          >
+            Yes, delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CRMPage() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -378,6 +400,7 @@ export default function CRMPage() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [pendingLostDrop, setPendingLostDrop] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [notesSaved, setNotesSaved] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
@@ -416,8 +439,6 @@ export default function CRMPage() {
     () => leads.find((lead) => lead.id === selectedLeadId) ?? null,
     [leads, selectedLeadId],
   );
-
-  const archivedLeads = useMemo(() => leads.filter((lead) => lead.archived), [leads]);
 
   const updateLeadLocally = (updated: Lead) => {
     setLeads((prev) => prev.map((lead) => (lead.id === updated.id ? updated : lead)));
@@ -566,7 +587,7 @@ export default function CRMPage() {
                   leads={leads.filter((lead) => lead.status === stage.key && !lead.archived)}
                   selectedLeadId={selectedLeadId}
                   onSelect={setSelectedLeadId}
-                  onDelete={(id) => setArchived(id, true)}
+                  onDelete={(id) => setPendingDeleteId(id)}
                 />
               ))}
             </div>
@@ -620,34 +641,6 @@ export default function CRMPage() {
             )}
           </div>
         </div>
-
-        <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-5 shadow-sm">
-          <h2 className="font-semibold">Deleted contacts ({archivedLeads.length})</h2>
-          <div className="mt-3 space-y-2">
-            {archivedLeads.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-[#ddd2bf] p-3 text-sm text-[#7b776d]">No deleted contacts.</p>
-            ) : (
-              archivedLeads.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="flex items-center justify-between rounded-xl border border-[#ebe3d2] bg-[#fcfbf7] p-3"
-                >
-                  <div>
-                    <p className="font-medium">{lead.full_name}</p>
-                    <p className="text-sm text-[#6b675d]">{lead.email}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setArchived(lead.id, false)}
-                    className="rounded-full border border-[#d2c8b5] px-3 py-1 text-sm font-medium"
-                  >
-                    Restore
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
 
       {showAddModal ? (
@@ -668,6 +661,16 @@ export default function CRMPage() {
           onConfirm={(reason) => {
             void moveLeadStatus(pendingLostDrop, "closed_lost", reason);
             setPendingLostDrop(null);
+          }}
+        />
+      ) : null}
+
+      {pendingDeleteId ? (
+        <DeleteConfirmModal
+          onClose={() => setPendingDeleteId(null)}
+          onConfirm={() => {
+            void setArchived(pendingDeleteId, true);
+            setPendingDeleteId(null);
           }}
         />
       ) : null}
