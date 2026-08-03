@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { addLead } from "@/lib/leads-store";
 
 // Receives native Meta/Instagram Lead Ads submissions — forms filled out
@@ -7,7 +7,7 @@ import { addLead } from "@/lib/leads-store";
 // separate from lib/attribution.ts, which only tracks fbclid/UTMs for
 // visitors who land on OUR page. The webhook payload only ever carries a
 // leadgen_id; the actual answers are fetched via a follow-up Graph API call
-// (PRD Section 3, "meta_lead_ads" source).
+// (PRD Section 8).
 const META_APP_SECRET = process.env.META_APP_SECRET;
 const META_VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 const META_PAGE_ACCESS_TOKEN = process.env.META_PAGE_ACCESS_TOKEN;
@@ -52,6 +52,52 @@ function fieldValue(fieldData: MetaFieldData[], ...candidates: string[]): string
   return "";
 }
 
+type LeadgenChange = {
+  leadgen_id: string;
+  form_id?: string;
+  ad_id?: string;
+  adgroup_id?: string;
+};
+
+async function processLeadgenChange(change: LeadgenChange) {
+  const { leadgen_id: leadgenId } = change;
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${leadgenId}?access_token=${META_PAGE_ACCESS_TOKEN}`,
+    );
+    if (!response.ok) {
+      console.error("Failed to fetch Meta lead", leadgenId, await response.text());
+      return;
+    }
+
+    const data = await response.json();
+    const fieldData: MetaFieldData[] = data.field_data ?? [];
+
+    await addLead({
+      fullName: fieldValue(fieldData, "full_name", "name") || "Unknown",
+      email: fieldValue(fieldData, "email"),
+      phone: fieldValue(fieldData, "phone_number", "phone"),
+      product: "Life insurance",
+      message: `Submitted via native Meta/Instagram lead form (leadgen_id: ${leadgenId}).`,
+      // Native Meta lead forms carry their own platform consent screen, not
+      // our CASL checkbox — treated as consented. Confirm with the client
+      // that this satisfies their CASL obligations (PRD Section 16).
+      consent: true,
+      source: "meta_lead_ads",
+      meta_leadgen_id: leadgenId,
+      meta_form_id: change.form_id ?? data.form_id ?? null,
+      meta_ad_id: change.ad_id ?? data.ad_id ?? null,
+      meta_adset_id: change.adgroup_id ?? null,
+      // Campaign/adset/ad display names require a separate Marketing API
+      // call (ads_read) per ad_id — deferred until that permission is
+      // granted in App Review (PRD Section 8, "Enrichment").
+    });
+  } catch (error) {
+    console.error("Error processing Meta lead", leadgenId, error);
+  }
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
@@ -67,45 +113,24 @@ export async function POST(request: Request) {
   }
 
   const payload = JSON.parse(rawBody);
-  const leadgenIds: string[] = [];
+  const changes: LeadgenChange[] = [];
 
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       if (change.field === "leadgen" && change.value?.leadgen_id) {
-        leadgenIds.push(change.value.leadgen_id);
+        changes.push(change.value as LeadgenChange);
       }
     }
   }
 
-  for (const leadgenId of leadgenIds) {
-    try {
-      const response = await fetch(
-        `https://graph.facebook.com/${GRAPH_API_VERSION}/${leadgenId}?access_token=${META_PAGE_ACCESS_TOKEN}`,
-      );
-      if (!response.ok) {
-        console.error("Failed to fetch Meta lead", leadgenId, await response.text());
-        continue;
-      }
-
-      const data = await response.json();
-      const fieldData: MetaFieldData[] = data.field_data ?? [];
-
-      await addLead({
-        fullName: fieldValue(fieldData, "full_name", "name") || "Unknown",
-        email: fieldValue(fieldData, "email"),
-        phone: fieldValue(fieldData, "phone_number", "phone"),
-        product: "Life insurance",
-        message: `Submitted via native Meta/Instagram lead form (leadgen_id: ${leadgenId}).`,
-        // Native Meta lead forms carry their own platform consent screen, not
-        // our CASL checkbox — treated as consented. Confirm with the client
-        // that this satisfies their CASL obligations (PRD Section 16).
-        consent: true,
-        source: "meta_lead_ads",
-      });
-    } catch (error) {
-      console.error("Error processing Meta lead", leadgenId, error);
+  // Acknowledge immediately — Meta retries and eventually disables
+  // subscriptions that time out or error, so retrieval/insert must not block
+  // the response (PRD Section 8, "Immediate acknowledgment").
+  after(async () => {
+    for (const change of changes) {
+      await processLeadgenChange(change);
     }
-  }
+  });
 
   return NextResponse.json({ ok: true });
 }

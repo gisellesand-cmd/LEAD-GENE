@@ -39,6 +39,14 @@ export type Lead = {
   last_contacted_at: string | null;
   pipeline_order: number;
   archived: boolean;
+  meta_leadgen_id: string | null;
+  meta_form_id: string | null;
+  meta_ad_id: string | null;
+  meta_adset_id: string | null;
+  meta_campaign_id: string | null;
+  meta_campaign_name: string | null;
+  meta_adset_name: string | null;
+  meta_ad_name: string | null;
 };
 
 export type LeadInput = {
@@ -57,6 +65,14 @@ export type LeadInput = {
   fbclid?: string | null;
   landing_url?: string | null;
   referrer?: string | null;
+  meta_leadgen_id?: string | null;
+  meta_form_id?: string | null;
+  meta_ad_id?: string | null;
+  meta_adset_id?: string | null;
+  meta_campaign_id?: string | null;
+  meta_campaign_name?: string | null;
+  meta_adset_name?: string | null;
+  meta_ad_name?: string | null;
 };
 
 // Falls back to a local JSON file when Supabase isn't configured yet, same
@@ -128,9 +144,29 @@ export async function addLead(input: LeadInput): Promise<Lead> {
     assigned_to: null,
     last_contacted_at: null,
     archived: false,
+    meta_leadgen_id: input.meta_leadgen_id ?? null,
+    meta_form_id: input.meta_form_id ?? null,
+    meta_ad_id: input.meta_ad_id ?? null,
+    meta_adset_id: input.meta_adset_id ?? null,
+    meta_campaign_id: input.meta_campaign_id ?? null,
+    meta_campaign_name: input.meta_campaign_name ?? null,
+    meta_adset_name: input.meta_adset_name ?? null,
+    meta_ad_name: input.meta_ad_name ?? null,
   };
 
   if (supabase) {
+    // Meta webhook retries and daily backfill overlaps send the same
+    // leadgen_id more than once — meta_leadgen_id is UNIQUE, so treat an
+    // existing row as a no-op instead of a duplicate lead.
+    if (base.meta_leadgen_id) {
+      const { data: existing } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("meta_leadgen_id", base.meta_leadgen_id)
+        .maybeSingle();
+      if (existing) return existing as Lead;
+    }
+
     const { count } = await supabase
       .from("leads")
       .select("*", { count: "exact", head: true });
@@ -139,11 +175,29 @@ export async function addLead(input: LeadInput): Promise<Lead> {
       .insert({ ...base, pipeline_order: count ?? 0 })
       .select()
       .single();
-    if (error) throw error;
+
+    if (error) {
+      // Unique-violation race: two near-simultaneous webhook retries both
+      // passed the check above. Fall back to the row that won.
+      if (error.code === "23505" && base.meta_leadgen_id) {
+        const { data: existing } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("meta_leadgen_id", base.meta_leadgen_id)
+          .single();
+        if (existing) return existing as Lead;
+      }
+      throw error;
+    }
     return data as Lead;
   }
 
   const leads = await readLeads();
+  if (base.meta_leadgen_id) {
+    const existing = leads.find((lead) => lead.meta_leadgen_id === base.meta_leadgen_id);
+    if (existing) return existing;
+  }
+
   const lead: Lead = {
     id: crypto.randomUUID(),
     created_at: new Date().toISOString(),
