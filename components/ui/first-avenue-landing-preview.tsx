@@ -286,7 +286,18 @@ export default function FirstAvenueLandingPreview() {
 
       <main className="mx-auto flex max-w-7xl flex-col gap-16 px-4 py-8 sm:px-6 lg:px-8 lg:py-10 font-jakarta">
         {/* HERO */}
-        <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <section className="relative isolate overflow-hidden rounded-3xl">
+          <Image
+            src="/hero-photo.jpg"
+            alt="Family reviewing their life insurance options together at home"
+            fill
+            priority
+            className="object-cover object-[center_25%]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/70 to-white/10" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-white/25" />
+
+          <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-2 lg:items-start lg:p-12">
           {/* Left: headline */}
           <div className="flex flex-col justify-center space-y-6 pr-2 lg:justify-start lg:space-y-6">
             <div>
@@ -615,6 +626,7 @@ export default function FirstAvenueLandingPreview() {
                 ) : null}
               </form>
             </motion.div>
+          </div>
           </div>
         </section>
 
