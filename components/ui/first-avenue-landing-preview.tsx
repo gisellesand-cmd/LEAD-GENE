@@ -286,8 +286,9 @@ export default function FirstAvenueLandingPreview() {
 
       <main className="mx-auto flex max-w-7xl flex-col gap-16 px-4 py-8 sm:px-6 lg:px-8 lg:py-10 font-jakarta">
         {/* HERO */}
-        <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
-          {/* Left: headline over photo */}
+        <section className="grid gap-6 lg:grid-cols-2">
+          {/* Left: headline over photo, plus "3 steps" filling the leftover space */}
+          <div className="flex flex-col gap-6">
           <div className="relative isolate overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10">
             <Image
               src="/hero-photo.jpg"
@@ -296,7 +297,7 @@ export default function FirstAvenueLandingPreview() {
               priority
               className="object-cover object-[25%_20%]"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-white/15 via-white/55 to-white/85" />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/65 via-white/70 to-white/90" />
 
             <div className="relative flex flex-col justify-center space-y-6 lg:justify-start lg:space-y-6">
             <div>
@@ -335,6 +336,30 @@ export default function FirstAvenueLandingPreview() {
               </div>
             </div>
             </div>
+          </div>
+
+          <div id="steps" className="flex flex-1 flex-col">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#c7a05f]">Simple process</p>
+            <h2 className="mt-2 text-2xl font-semibold text-[#5a9150]">Get Covered in 3 Easy Steps</h2>
+            <p className="mt-3 max-w-md text-sm leading-6 text-[#666666]">
+              No paperwork, no confusing jargon. Just honest advice and competitive rates from
+              Canadian insurers.
+            </p>
+            <div className="mt-6 flex flex-1 flex-col justify-between gap-4">
+              {stepItems.map((item) => (
+                <div
+                  key={item.step}
+                  className="rounded-xl border border-[#e5e5e5] bg-white p-5 transition hover:-translate-y-1 hover:shadow-[0_20px_40px_-25px_rgba(31,74,52,0.35)]"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#5a9150] text-sm font-semibold text-white">
+                    {item.step}
+                  </span>
+                  <p className="mt-3 text-sm font-semibold text-[#5a9150]">{item.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-[#666666]">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
           </div>
 
           {/* Right: animated card grid + real quote form */}
@@ -626,30 +651,6 @@ export default function FirstAvenueLandingPreview() {
                 ) : null}
               </form>
             </motion.div>
-          </div>
-        </section>
-
-        {/* 3 STEPS */}
-        <section id="steps" className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#c7a05f]">Simple process</p>
-          <h2 className="mt-2 text-3xl font-semibold text-[#5a9150]">Get Covered in 3 Easy Steps</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#666666]">
-            No paperwork, no confusing jargon. Just honest advice and competitive rates from
-            Canadian insurers.
-          </p>
-          <div className="mt-8 grid gap-6 text-left lg:grid-cols-3">
-            {stepItems.map((item) => (
-              <div
-                key={item.step}
-                className="rounded-xl border border-[#e5e5e5] bg-white p-6 transition hover:-translate-y-1 hover:shadow-[0_20px_40px_-25px_rgba(31,74,52,0.35)]"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#5a9150] text-base font-semibold text-white">
-                  {item.step}
-                </span>
-                <p className="mt-4 text-base font-semibold text-[#5a9150]">{item.title}</p>
-                <p className="mt-2 text-sm leading-6 text-[#666666]">{item.description}</p>
-              </div>
-            ))}
           </div>
         </section>
 
