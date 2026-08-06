@@ -239,7 +239,7 @@ export default function FirstAvenueLandingPreview() {
       `}</style>
 
       <div className="hidden justify-center gap-6 bg-[#14301f] px-4 py-2 text-xs text-[#cfe6c6] sm:flex font-jakarta">
-        <span>Servicing all of Canada</span>
+        <span>Servicing Alberta &amp; BC</span>
         <span className="text-[#4e8221]">|</span>
         <span>Licensed Insurance Advisor</span>
         <span className="text-[#4e8221]">|</span>
@@ -284,11 +284,11 @@ export default function FirstAvenueLandingPreview() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-16 px-4 py-10 sm:px-6 lg:px-8 lg:py-14 font-jakarta">
+      <main className="mx-auto flex max-w-7xl flex-col gap-16 px-4 py-8 sm:px-6 lg:px-8 lg:py-10 font-jakarta">
         {/* HERO */}
-        <section className="grid gap-6 lg:grid-cols-2">
+        <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
           {/* Left: headline */}
-          <div className="flex flex-col justify-center space-y-8 pr-2">
+          <div className="flex flex-col justify-center space-y-6 pr-2 lg:justify-start lg:space-y-6">
             <div>
               <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-[#71b664]/40 bg-[#f0f8ed] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4e8221]">
                 Your top rated local advisor
