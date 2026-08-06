@@ -12,15 +12,6 @@ export default function TermsPage() {
           ← Back to First Avenue Financial
         </Link>
 
-        <div className="mt-6 rounded-sm border-2 border-[#c0392b] bg-[#fff5f5] p-4 text-sm text-[#8c2f2f]">
-          <p className="font-semibold uppercase tracking-wide">Draft — Not for Publication</p>
-          <p className="mt-1">
-            Working copy prepared by KOKO Agency. Must be reviewed and approved by First Avenue
-            Financial&apos;s Canadian counsel before publishing (PRD Section 16, Appendix A).
-            Bracketed items below are placeholders pending information from the client.
-          </p>
-        </div>
-
         <h1 className="mt-8 text-3xl font-semibold text-[#333333]">Terms of Service</h1>
         <p className="mt-2 text-sm text-[#888888]">Last updated: [effective date]</p>
 
@@ -174,10 +165,6 @@ export default function TermsPage() {
             </p>
             <p className="mt-3">
               First Avenue Financial
-              <br />
-              [Registered business address pending]
-              <br />
-              [Contact email pending]
               <br />
               Phone: 403-390-2380
             </p>
