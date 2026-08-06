@@ -286,10 +286,10 @@ export default function FirstAvenueLandingPreview() {
 
       <main className="mx-auto flex max-w-7xl flex-col gap-16 px-4 py-8 sm:px-6 lg:px-8 lg:py-10 font-jakarta">
         {/* HERO */}
-        <section className="grid gap-6 lg:grid-cols-2">
-          {/* Left: headline over photo, plus "3 steps" filling the leftover space */}
-          <div className="flex flex-col gap-6">
-          <div className="relative isolate overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10">
+        <section className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="contents lg:flex lg:flex-1 lg:flex-col lg:gap-6">
+          {/* Photo + headline */}
+          <div className="order-1 lg:order-none relative isolate overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10">
             <Image
               src="/hero-photo.jpg"
               alt="Family reviewing their life insurance options together at home"
@@ -338,14 +338,14 @@ export default function FirstAvenueLandingPreview() {
             </div>
           </div>
 
-          <div id="steps" className="flex flex-1 flex-col">
+          <div id="steps" className="order-3 lg:order-none">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#c7a05f]">Simple process</p>
             <h2 className="mt-2 text-2xl font-semibold text-[#5a9150]">Get Covered in 3 Easy Steps</h2>
             <p className="mt-3 max-w-md text-sm leading-6 text-[#666666]">
               No paperwork, no confusing jargon. Just honest advice and competitive rates from
               Canadian insurers.
             </p>
-            <div className="mt-6 flex flex-1 flex-col justify-between gap-4">
+            <div className="mt-6 grid gap-4">
               {stepItems.map((item) => (
                 <div
                   key={item.step}
@@ -362,8 +362,9 @@ export default function FirstAvenueLandingPreview() {
           </div>
           </div>
 
-          {/* Right: animated card grid + real quote form */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+          <div className="contents lg:flex lg:flex-1 lg:flex-col lg:gap-6">
+          {/* Info cards */}
+          <div className="order-4 lg:order-none grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -379,6 +380,15 @@ export default function FirstAvenueLandingPreview() {
               <div className="mt-6 text-lg leading-snug text-white/95">
                 Most plans approve
                 <br /> without a medical exam
+              </div>
+              <div className="mt-5 border-t border-white/15 pt-4">
+                <p className="text-sm font-semibold text-white">
+                  What if I&apos;m not healthy? Can I still get coverage?
+                </p>
+                <p className="mt-2 text-sm leading-6 text-white/80">
+                  In most cases, yes. Rates vary based on health history, and there are options
+                  designed for a wide range of health situations.
+                </p>
               </div>
               <motion.div
                 className="absolute right-5 top-5 h-10 w-10 rounded-full bg-[#71b664]/30"
@@ -399,15 +409,19 @@ export default function FirstAvenueLandingPreview() {
                 <br /> one simple form
               </div>
               <CompareBars />
+              <p className="mt-5 border-t border-white/15 pt-4 text-sm leading-6 text-white/85">
+                See the top 3 insurance quotes for you, live.
+              </p>
             </motion.div>
+          </div>
 
-            {/* Real quote + contact capture card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="col-span-1 rounded-xl bg-white p-6 shadow-lg ring-1 ring-[#e5e5e5] sm:col-span-2 sm:p-8"
-            >
+          {/* Real quote + contact capture card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="order-2 lg:order-none rounded-xl bg-white p-6 shadow-lg ring-1 ring-[#e5e5e5] sm:p-8"
+          >
               <h2 className="text-xl font-semibold text-[#5a9150]">Get Your Free Quote</h2>
               <p className="mt-1 text-sm text-[#666666]">No spam. A licensed advisor will contact you.</p>
 
