@@ -590,14 +590,14 @@ export default function FirstAvenueLandingPreview() {
                             className="flex items-center justify-between rounded-lg bg-white/70 px-3 py-2"
                           >
                             <div>
-                              <p className="text-sm font-semibold text-[#345c22]">
-                                {quote.companyName}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-[#345c22]">{quote.companyName}</p>
                                 {index === 0 ? (
-                                  <span className="ml-2 rounded-full bg-[#5a9150] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                  <span className="whitespace-nowrap rounded-full bg-[#5a9150] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                                     Best rate
                                   </span>
                                 ) : null}
-                              </p>
+                              </div>
                               <p className="text-xs text-[#5f7a54]">{quote.productName}</p>
                             </div>
                             <p className="text-lg font-semibold text-[#5a9150]">{quote.monthlyPremium}/mo</p>

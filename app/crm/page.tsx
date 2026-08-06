@@ -717,10 +717,37 @@ export default function CRMPage() {
                     <p className="mt-2"><strong>Lost reason:</strong> {selectedLead.lost_reason}</p>
                   ) : null}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">Message</p>
-                  <p className="mt-2 text-sm text-[#5f5c54]">{selectedLead.message || "No message provided."}</p>
-                </div>
+                {selectedLead.quote_results && selectedLead.quote_results.length > 0 ? (
+                  <div>
+                    <p className="text-sm font-semibold">What the user saw</p>
+                    <div className="mt-2 space-y-2">
+                      {selectedLead.quote_results.slice(0, 3).map((quote, index) => (
+                        <div
+                          key={`seen-${quote.companyName}-${index}`}
+                          className="flex items-center justify-between rounded-xl border border-[#ebe3d2] bg-[#faf7f0] p-3 text-sm"
+                        >
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium text-[#4b4a47]">{quote.companyName}</p>
+                              {index === 0 ? (
+                                <span className="whitespace-nowrap rounded-full bg-[#1d4d31] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                  Best rate
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="text-xs text-[#6b675d]">{quote.productName}</p>
+                          </div>
+                          <p className="font-semibold text-[#4b5b41]">{quote.monthlyPremium}/mo</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm font-semibold">Message</p>
+                    <p className="mt-2 text-sm text-[#5f5c54]">{selectedLead.message || "No message provided."}</p>
+                  </div>
+                )}
                 {selectedLead.quote_results && selectedLead.quote_results.length > 0 ? (
                   <div>
                     <p className="text-sm font-semibold">All quotes compared</p>
@@ -731,14 +758,14 @@ export default function CRMPage() {
                           className="flex items-center justify-between rounded-xl border border-[#ebe3d2] bg-[#faf7f0] p-3 text-sm"
                         >
                           <div>
-                            <p className="font-medium text-[#4b4a47]">
-                              {quote.companyName}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium text-[#4b4a47]">{quote.companyName}</p>
                               {index === 0 ? (
-                                <span className="ml-2 rounded-full bg-[#1d4d31] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                <span className="whitespace-nowrap rounded-full bg-[#1d4d31] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                                   Best rate
                                 </span>
                               ) : null}
-                            </p>
+                            </div>
                             <p className="text-xs text-[#6b675d]">{quote.productName}</p>
                           </div>
                           <p className="font-semibold text-[#4b5b41]">{quote.monthlyPremium}/mo</p>
