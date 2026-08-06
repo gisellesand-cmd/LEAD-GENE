@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addLead, readLeads, type LeadSource } from "@/lib/leads-store";
+import { addLead, readLeads, type CarrierQuote, type LeadSource } from "@/lib/leads-store";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -55,6 +55,19 @@ export async function POST(request: Request) {
     const email = typeof body?.email === "string" ? body.email.trim() : "";
     const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
     const product = typeof body?.product === "string" ? body.product.trim() : "";
+    const companyName = typeof body?.company_name === "string" ? body.company_name.trim() : null;
+    const insurerProductName =
+      typeof body?.insurer_product_name === "string" ? body.insurer_product_name.trim() : null;
+    const quoteResults = Array.isArray(body?.quote_results)
+      ? body.quote_results.filter(
+          (quote: unknown): quote is CarrierQuote =>
+            typeof quote === "object" &&
+            quote !== null &&
+            typeof (quote as CarrierQuote).companyName === "string" &&
+            typeof (quote as CarrierQuote).productName === "string" &&
+            typeof (quote as CarrierQuote).monthlyPremium === "string",
+        )
+      : null;
     const consent = Boolean(body?.consent);
 
     if (!fullName || !email || !consent) {
@@ -70,6 +83,9 @@ export async function POST(request: Request) {
       email,
       phone,
       product,
+      company_name: companyName,
+      insurer_product_name: insurerProductName,
+      quote_results: quoteResults,
       message: typeof body?.message === "string" ? body.message : "",
       consent,
       source: body?.source === "manual" ? "manual" : classifySource({ utm_source, gclid, fbclid }),

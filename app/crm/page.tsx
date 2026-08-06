@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
-import type { Lead, LeadSource, LeadStatus } from "@/lib/leads-store";
+import type { Lead, LeadNote, LeadSource, LeadStatus } from "@/lib/leads-store";
 
 const stages: Array<{ key: LeadStatus; label: string }> = [
   { key: "new", label: "New" },
@@ -68,6 +76,11 @@ function LeadCard({
       >
         <p className="font-semibold">{lead.full_name}</p>
         <p className="mt-1 text-sm text-[#6b675d]">{lead.product_interest}</p>
+        {lead.company_name ? (
+          <p className="mt-1 text-sm font-medium text-[#4b5b41]">
+            <span className="font-semibold">Quoter:</span> {lead.company_name}
+          </p>
+        ) : null}
         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8a5f]">{sourceLabel[lead.source]}</p>
       </button>
       <button
@@ -447,8 +460,10 @@ export default function CRMPage() {
   const [pendingLostDrop, setPendingLostDrop] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [showDeletedModal, setShowDeletedModal] = useState(false);
-  const [notesSaved, setNotesSaved] = useState(false);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const [noteHistory, setNoteHistory] = useState<LeadNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -486,6 +501,20 @@ export default function CRMPage() {
     [leads, selectedLeadId],
   );
 
+  useEffect(() => {
+    if (!selectedLeadId) {
+      setNoteHistory([]);
+      return;
+    }
+
+    setNewNote("");
+    setNotesLoading(true);
+    fetch(`/api/leads/${selectedLeadId}/notes`)
+      .then((response) => response.json())
+      .then((data) => setNoteHistory(data.notes ?? []))
+      .finally(() => setNotesLoading(false));
+  }, [selectedLeadId]);
+
   const archivedLeads = useMemo(() => leads.filter((lead) => lead.archived), [leads]);
 
   const updateLeadLocally = (updated: Lead) => {
@@ -520,17 +549,30 @@ export default function CRMPage() {
     void moveLeadStatus(leadId, targetStatus);
   };
 
-  const handleSaveNotes = async () => {
-    if (!selectedLead || !notesRef.current) return;
+  const handleAddNote = async () => {
+    if (!selectedLead || !newNote.trim()) return;
+    setSavingNote(true);
     try {
-      const updated = await patchLead(selectedLead.id, { notes: notesRef.current.value });
-      updateLeadLocally(updated);
-      setNotesSaved(true);
-      setTimeout(() => setNotesSaved(false), 2000);
+      const response = await fetch(`/api/leads/${selectedLead.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: newNote.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save note.");
+      setNoteHistory((prev) => [data.note as LeadNote, ...prev]);
+      setNewNote("");
     } catch {
       // Leave the textarea as-is; the user can retry the save.
+    } finally {
+      setSavingNote(false);
     }
   };
+
+  // Without this, dnd-kit starts a drag on the tiniest pointer movement —
+  // which happens on nearly every real click — and hijacks the "select
+  // lead" button before its onClick ever fires.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const setArchived = async (leadId: string, archived: boolean) => {
     const previous = leads;
@@ -626,7 +668,7 @@ export default function CRMPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
-          <DndContext onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-5">
               {stages.map((stage) => (
                 <StageColumn
@@ -663,6 +705,12 @@ export default function CRMPage() {
                   <p><strong>Email:</strong> {selectedLead.email}</p>
                   <p className="mt-2"><strong>Phone:</strong> {selectedLead.phone}</p>
                   <p className="mt-2"><strong>Product:</strong> {selectedLead.product_interest}</p>
+                  {selectedLead.company_name ? (
+                    <p className="mt-2">
+                      <strong>Quoter:</strong> {selectedLead.company_name}
+                      {selectedLead.insurer_product_name ? ` (${selectedLead.insurer_product_name})` : ""}
+                    </p>
+                  ) : null}
                   <p className="mt-2"><strong>Source:</strong> {sourceLabel[selectedLead.source]}</p>
                   <p className="mt-2"><strong>Status:</strong> {selectedLead.status}</p>
                   {selectedLead.lost_reason ? (
@@ -673,23 +721,66 @@ export default function CRMPage() {
                   <p className="text-sm font-semibold">Message</p>
                   <p className="mt-2 text-sm text-[#5f5c54]">{selectedLead.message || "No message provided."}</p>
                 </div>
+                {selectedLead.quote_results && selectedLead.quote_results.length > 0 ? (
+                  <div>
+                    <p className="text-sm font-semibold">All quotes compared</p>
+                    <div className="mt-2 space-y-2">
+                      {selectedLead.quote_results.map((quote, index) => (
+                        <div
+                          key={`${quote.companyName}-${index}`}
+                          className="flex items-center justify-between rounded-xl border border-[#ebe3d2] bg-[#faf7f0] p-3 text-sm"
+                        >
+                          <div>
+                            <p className="font-medium text-[#4b4a47]">
+                              {quote.companyName}
+                              {index === 0 ? (
+                                <span className="ml-2 rounded-full bg-[#1d4d31] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                  Best rate
+                                </span>
+                              ) : null}
+                            </p>
+                            <p className="text-xs text-[#6b675d]">{quote.productName}</p>
+                          </div>
+                          <p className="font-semibold text-[#4b5b41]">{quote.monthlyPremium}/mo</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div>
                   <p className="text-sm font-semibold">Notes</p>
+                  <div className="mt-2 max-h-64 space-y-3 overflow-y-auto">
+                    {notesLoading ? (
+                      <p className="text-sm text-[#7b776d]">Loading notes...</p>
+                    ) : noteHistory.length === 0 ? (
+                      <p className="text-sm text-[#7b776d]">No notes yet.</p>
+                    ) : (
+                      noteHistory.map((note) => (
+                        <div key={note.id} className="rounded-2xl border border-[#ebe3d2] bg-[#faf7f0] p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8572]">
+                            {new Date(note.created_at).toLocaleString()}
+                            {note.created_by ? ` · ${note.created_by}` : ""}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm text-[#4b4a47]">{note.body}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
                   <textarea
-                    key={selectedLead.id}
-                    ref={notesRef}
-                    className="mt-2 min-h-24 w-full rounded-2xl border border-[#d4cdbd] p-3 text-sm"
-                    defaultValue={selectedLead.notes}
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder="Add a note..."
+                    className="mt-3 min-h-20 w-full rounded-2xl border border-[#d4cdbd] p-3 text-sm"
                   />
                   <div className="mt-2 flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={handleSaveNotes}
-                      className="rounded-full bg-[#1d4d31] px-4 py-2 text-sm font-medium text-white"
+                      onClick={handleAddNote}
+                      disabled={savingNote || !newNote.trim()}
+                      className="rounded-full bg-[#1d4d31] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                     >
-                      Save notes
+                      {savingNote ? "Saving..." : "Add note"}
                     </button>
-                    {notesSaved ? <span className="text-sm text-[#4b8a5f]">Saved.</span> : null}
                   </div>
                 </div>
               </div>

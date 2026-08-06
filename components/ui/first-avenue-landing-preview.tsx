@@ -6,6 +6,12 @@ import { motion } from "framer-motion";
 import { ShieldCheck, Sparkles, PhoneCall } from "lucide-react";
 import { captureAttribution, readAttribution } from "@/lib/attribution";
 
+type CarrierQuote = {
+  companyName: string;
+  productName: string;
+  monthlyPremium: string;
+};
+
 type QuoteResult = {
   mock: boolean;
   monthlyPremium: string;
@@ -14,6 +20,8 @@ type QuoteResult = {
   coverageAmount: string;
   termLabel: string;
   note: string;
+  topQuotes: CarrierQuote[];
+  allQuotes: CarrierQuote[];
 };
 
 const termOptions = [
@@ -207,6 +215,9 @@ export default function FirstAvenueLandingPreview() {
           email: form.email,
           phone: form.phone,
           product: `Term Life Insurance (${termLabel}, $${form.faceAmount})`,
+          company_name: quoteData.companyName,
+          insurer_product_name: quoteData.productName,
+          quote_results: quoteData.allQuotes,
           message: `Province: ${form.province}. Estimated premium: ${quoteData.monthlyPremium}/month with ${quoteData.companyName} (${quoteData.productName}).`,
           consent: form.consent,
           ...attribution,
@@ -571,8 +582,28 @@ export default function FirstAvenueLandingPreview() {
                 {quoteResult ? (
                   <div className="grid gap-3 rounded-lg border border-[#cfe6c6] bg-[#f0f8ed] p-4">
                     <div>
-                      <p className="text-sm text-[#345c22]">Estimated monthly premium</p>
-                      <p className="text-2xl font-semibold text-[#5a9150]">{quoteResult.monthlyPremium}</p>
+                      <p className="text-sm text-[#345c22]">Your top rates</p>
+                      <div className="mt-2 space-y-2">
+                        {quoteResult.topQuotes.map((quote, index) => (
+                          <div
+                            key={`${quote.companyName}-${index}`}
+                            className="flex items-center justify-between rounded-lg bg-white/70 px-3 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-[#345c22]">
+                                {quote.companyName}
+                                {index === 0 ? (
+                                  <span className="ml-2 rounded-full bg-[#5a9150] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                    Best rate
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="text-xs text-[#5f7a54]">{quote.productName}</p>
+                            </div>
+                            <p className="text-lg font-semibold text-[#5a9150]">{quote.monthlyPremium}/mo</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     <p className="text-xs text-[#345c22]">{quoteResult.note}</p>
                     {leadSaved ? (

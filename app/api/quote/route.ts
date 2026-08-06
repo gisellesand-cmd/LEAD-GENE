@@ -47,6 +47,12 @@ type QuotePayload = {
   province?: string;
 };
 
+type CarrierQuote = {
+  companyName: string;
+  productName: string;
+  monthlyPremium: string;
+};
+
 type QuoteResult = {
   mock: boolean;
   monthlyPremium: string;
@@ -55,6 +61,12 @@ type QuoteResult = {
   coverageAmount: string;
   termLabel: string;
   note: string;
+  // Compulife compares against ~15 carriers per request, sorted
+  // cheapest-first. topQuotes is what the landing page shows (best 3);
+  // allQuotes is the full list, saved with the lead so the CRM can show
+  // every carrier that was quoted, not just the cheapest.
+  topQuotes: CarrierQuote[];
+  allQuotes: CarrierQuote[];
 };
 
 const TERM_LABELS: Record<string, string> = {
@@ -78,14 +90,22 @@ function buildMockResult(faceAmount: number, termCategory: string): QuoteResult 
   // Rough reference-only estimate so the UI has something to show before
   // COMPULIFE_AUTHORIZATION_ID is configured. Not a real insurance quote.
   const monthlyPremium = Math.max(15, (faceAmount / 100000) * 12);
+  const productName = TERM_LABELS[termCategory] ?? "Term Life";
+  const mockQuote: CarrierQuote = {
+    companyName: "Reference estimate",
+    productName,
+    monthlyPremium: formatCurrency(monthlyPremium),
+  };
   return {
     mock: true,
-    monthlyPremium: formatCurrency(monthlyPremium),
-    companyName: "Reference estimate",
-    productName: TERM_LABELS[termCategory] ?? "Term Life",
+    monthlyPremium: mockQuote.monthlyPremium,
+    companyName: mockQuote.companyName,
+    productName,
     coverageAmount: formatCurrency(faceAmount),
-    termLabel: TERM_LABELS[termCategory] ?? "Term Life",
+    termLabel: productName,
     note: "This is a reference estimate. Your real quote will activate once the Compulife connection is complete.",
+    topQuotes: [mockQuote],
+    allQuotes: [mockQuote],
   };
 }
 
@@ -188,7 +208,7 @@ export async function POST(request: Request) {
 
     // Compulife nests results under Compulife_ComparisonResults.Compulife_Results,
     // sorted cheapest-first (SortOverride1: "A"), with "Compulife_"-prefixed field
-    // names on each row.
+    // names on each row. It compares against ~15 carriers per request.
     const results = data?.Compulife_ComparisonResults?.Compulife_Results;
     const top = Array.isArray(results) ? results[0] : undefined;
 
@@ -196,14 +216,24 @@ export async function POST(request: Request) {
       return NextResponse.json(buildMockResult(faceAmount, termCategory));
     }
 
+    const allQuotes: CarrierQuote[] = results.map(
+      (row: { Compulife_company?: string; Compulife_product?: string; Compulife_premiumM?: number }) => ({
+        companyName: row.Compulife_company ?? "Compulife",
+        productName: row.Compulife_product?.trim() || TERM_LABELS[termCategory] || "Term Life",
+        monthlyPremium: formatCurrency(Number(row.Compulife_premiumM ?? 0)),
+      }),
+    );
+
     const result: QuoteResult = {
       mock: false,
-      monthlyPremium: formatCurrency(Number(top.Compulife_premiumM ?? 0)),
-      companyName: top.Compulife_company ?? "Compulife",
-      productName: top.Compulife_product?.trim() || TERM_LABELS[termCategory] || "Term Life",
+      monthlyPremium: allQuotes[0].monthlyPremium,
+      companyName: allQuotes[0].companyName,
+      productName: allQuotes[0].productName,
       coverageAmount: formatCurrency(faceAmount),
       termLabel: TERM_LABELS[termCategory] ?? "Term Life",
       note: "Live quote from Compulife.",
+      topQuotes: allQuotes.slice(0, 3),
+      allQuotes,
     };
 
     return NextResponse.json(result);

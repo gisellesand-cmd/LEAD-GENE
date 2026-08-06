@@ -6,6 +6,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // meta_lead_ads (native Meta forms) is a later phase (webhook integration);
 // it already exists here so the CRM/schema does not need to change when that phase lands.
 export type LeadSource = "meta_lead_ads" | "meta_paid" | "google_ads" | "organic" | "manual";
+export type CarrierQuote = {
+  companyName: string;
+  productName: string;
+  monthlyPremium: string;
+};
 export type LeadStatus =
   | "new"
   | "contacted"
@@ -24,6 +29,9 @@ export type Lead = {
   email: string;
   phone: string;
   product_interest: string;
+  company_name: string | null;
+  insurer_product_name: string | null;
+  quote_results: CarrierQuote[] | null;
   message: string;
   consent_casl: boolean;
   utm_source: string | null;
@@ -55,6 +63,9 @@ export type LeadInput = {
   email: string;
   phone: string;
   product?: string;
+  company_name?: string | null;
+  insurer_product_name?: string | null;
+  quote_results?: CarrierQuote[] | null;
   message?: string;
   consent?: boolean;
   source?: LeadSource;
@@ -132,6 +143,9 @@ export async function addLead(input: LeadInput): Promise<Lead> {
     email: input.email.trim(),
     phone: input.phone.trim(),
     product_interest: input.product?.trim() ?? "",
+    company_name: input.company_name?.trim() || null,
+    insurer_product_name: input.insurer_product_name?.trim() || null,
+    quote_results: input.quote_results ?? null,
     message: input.message?.trim() ?? "",
     consent_casl: Boolean(input.consent),
     utm_source: input.utm_source ?? null,
@@ -234,4 +248,69 @@ export async function updateLead(id: string, updates: Partial<Lead>): Promise<Le
   const nextLeads = leads.map((lead) => (lead.id === id ? updatedLead : lead));
   await writeLeads(nextLeads);
   return updatedLead;
+}
+
+export type LeadNote = {
+  id: string;
+  lead_id: string;
+  body: string;
+  created_at: string;
+  created_by: string | null;
+};
+
+const NOTES_STORE_FILE = path.join(process.cwd(), "data", "lead-notes.json");
+
+async function readLocalNotes(): Promise<LeadNote[]> {
+  await mkdir(path.dirname(NOTES_STORE_FILE), { recursive: true });
+  try {
+    const content = await readFile(NOTES_STORE_FILE, "utf8");
+    const parsed = JSON.parse(content) as LeadNote[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getLeadNotes(leadId: string): Promise<LeadNote[]> {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("lead_notes")
+      .select("*")
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data as LeadNote[];
+  }
+
+  const notes = await readLocalNotes();
+  return notes
+    .filter((note) => note.lead_id === leadId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export async function addLeadNote(
+  leadId: string,
+  body: string,
+  createdBy: string | null,
+): Promise<LeadNote> {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("lead_notes")
+      .insert({ lead_id: leadId, body, created_by: createdBy })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as LeadNote;
+  }
+
+  const notes = await readLocalNotes();
+  const note: LeadNote = {
+    id: crypto.randomUUID(),
+    lead_id: leadId,
+    body,
+    created_at: new Date().toISOString(),
+    created_by: createdBy,
+  };
+  await writeFile(NOTES_STORE_FILE, JSON.stringify([note, ...notes], null, 2), "utf8");
+  return note;
 }
