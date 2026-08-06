@@ -286,20 +286,19 @@ export default function FirstAvenueLandingPreview() {
 
       <main className="mx-auto flex max-w-7xl flex-col gap-16 px-4 py-8 sm:px-6 lg:px-8 lg:py-10 font-jakarta">
         {/* HERO */}
-        <section className="relative isolate overflow-hidden rounded-3xl">
-          <Image
-            src="/hero-photo.jpg"
-            alt="Family reviewing their life insurance options together at home"
-            fill
-            priority
-            className="object-cover object-[center_25%]"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/70 to-white/10" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-white/25" />
+        <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          {/* Left: headline over photo */}
+          <div className="relative isolate overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10">
+            <Image
+              src="/hero-photo.jpg"
+              alt="Family reviewing their life insurance options together at home"
+              fill
+              priority
+              className="object-cover object-[25%_20%]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/15 via-white/55 to-white/85" />
 
-          <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-2 lg:items-start lg:p-12">
-          {/* Left: headline */}
-          <div className="flex flex-col justify-center space-y-6 pr-2 lg:justify-start lg:space-y-6">
+            <div className="relative flex flex-col justify-center space-y-6 lg:justify-start lg:space-y-6">
             <div>
               <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-[#71b664]/40 bg-[#f0f8ed] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4e8221]">
                 Your top rated local advisor
@@ -334,6 +333,7 @@ export default function FirstAvenueLandingPreview() {
                 <span>Canada Life</span>
                 <span>Sun Life</span>
               </div>
+            </div>
             </div>
           </div>
 
@@ -626,7 +626,6 @@ export default function FirstAvenueLandingPreview() {
                 ) : null}
               </form>
             </motion.div>
-          </div>
           </div>
         </section>
 
