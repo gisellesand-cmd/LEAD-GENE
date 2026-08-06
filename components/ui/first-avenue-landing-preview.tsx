@@ -341,10 +341,6 @@ export default function FirstAvenueLandingPreview() {
           <div id="steps" className="order-3 lg:order-none">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#c7a05f]">Simple process</p>
             <h2 className="mt-2 text-2xl font-semibold text-[#5a9150]">Get Covered in 3 Easy Steps</h2>
-            <p className="mt-3 max-w-md text-sm leading-6 text-[#666666]">
-              No paperwork, no confusing jargon. Just honest advice and competitive rates from
-              Canadian insurers.
-            </p>
             <div className="mt-6 grid gap-4">
               {stepItems.map((item) => (
                 <div
