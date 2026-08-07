@@ -439,11 +439,15 @@ function DeletedContactsModal({
   leads,
   onClose,
   onRestore,
+  onPermanentlyDelete,
 }: {
   leads: Lead[];
   onClose: () => void;
   onRestore: (id: string) => void;
+  onPermanentlyDelete: (id: string) => void;
 }) {
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-md space-y-4 rounded-[1.5rem] border border-[#e0d7c3] bg-white p-6 shadow-lg">
@@ -463,13 +467,45 @@ function DeletedContactsModal({
                   <p className="font-medium">{lead.full_name}</p>
                   <p className="text-sm text-[#6b675d]">{lead.email}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onRestore(lead.id)}
-                  className="rounded-full border border-[#d2c8b5] px-3 py-1 text-sm font-medium"
-                >
-                  Restore
-                </button>
+                {confirmingId === lead.id ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#8a3b2b]">Delete forever?</span>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingId(null)}
+                      className="rounded-full border border-[#d2c8b5] px-3 py-1 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onPermanentlyDelete(lead.id);
+                        setConfirmingId(null);
+                      }}
+                      className="rounded-full bg-[#8a3b2b] px-3 py-1 text-sm font-medium text-white"
+                    >
+                      Yes, delete
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onRestore(lead.id)}
+                      className="rounded-full border border-[#d2c8b5] px-3 py-1 text-sm font-medium"
+                    >
+                      Restore
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingId(lead.id)}
+                      className="rounded-full border border-[#8a3b2b] px-3 py-1 text-sm font-medium text-[#8a3b2b]"
+                    >
+                      Delete forever
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -611,6 +647,17 @@ export default function CRMPage() {
     try {
       const updated = await patchLead(leadId, { archived });
       updateLeadLocally(updated);
+    } catch {
+      setLeads(previous);
+    }
+  };
+
+  const hardDeleteLead = async (leadId: string) => {
+    const previous = leads;
+    setLeads((prev) => prev.filter((lead) => lead.id !== leadId));
+    try {
+      const response = await fetch(`/api/leads/${leadId}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Delete failed.");
     } catch {
       setLeads(previous);
     }
@@ -877,6 +924,7 @@ export default function CRMPage() {
           leads={archivedLeads}
           onClose={() => setShowDeletedModal(false)}
           onRestore={(id) => setArchived(id, false)}
+          onPermanentlyDelete={(id) => void hardDeleteLead(id)}
         />
       ) : null}
 

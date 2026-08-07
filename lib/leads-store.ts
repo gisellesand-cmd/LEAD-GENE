@@ -393,3 +393,25 @@ export async function addLeadNote(
   await writeFile(NOTES_STORE_FILE, JSON.stringify([note, ...notes], null, 2), "utf8");
   return note;
 }
+
+// Hard delete — only exposed via the "Deleted contacts" list (archived
+// leads), for permanently clearing out old test/duplicate entries. Notes
+// and email logs cascade with the row in Supabase; the local JSON fallback
+// has no FK cascade, so its notes file is cleaned up here explicitly.
+export async function deleteLead(id: string): Promise<boolean> {
+  if (supabase) {
+    const { error } = await supabase.from("leads").delete().eq("id", id);
+    return !error;
+  }
+
+  const leads = await readLeads();
+  const nextLeads = leads.filter((lead) => lead.id !== id);
+  if (nextLeads.length === leads.length) return false;
+  await writeLeads(nextLeads);
+
+  const notes = await readLocalNotes();
+  const nextNotes = notes.filter((note) => note.lead_id !== id);
+  await writeFile(NOTES_STORE_FILE, JSON.stringify(nextNotes, null, 2), "utf8");
+
+  return true;
+}

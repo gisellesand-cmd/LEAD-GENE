@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { updateLead, type Lead, type LeadStatus } from "@/lib/leads-store";
+import { deleteLead, updateLead, type Lead, type LeadStatus } from "@/lib/leads-store";
 import { createClient } from "@/lib/supabase/server";
 
 const VALID_STATUSES: LeadStatus[] = [
@@ -55,4 +55,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json({ lead });
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const deleted = await deleteLead(id);
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
 }
