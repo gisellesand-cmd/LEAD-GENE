@@ -36,6 +36,33 @@ const PROVINCE_ABBREVIATION: Record<string, string> = {
   "British Columbia": "BC",
 };
 
+// First Avenue Financial is only appointed to sell for these carriers —
+// Compulife compares ~15 per request, but quoting one the advisor can't
+// actually write business with would be misleading. Matched by keyword,
+// not exact legal name, since Compulife's names don't always match the
+// brand (e.g. iA Financial Group shows up as "Industrial - Alliance Life
+// Insurance", and Canada Protection Plan is a Foresters brand). Update this
+// list if the carrier appointments change.
+const ALLOWED_CARRIER_KEYWORDS = [
+  "assumption",
+  "desjardins",
+  "empire",
+  "equitable",
+  "foresters", // also matches "Canada Protection Plan (Foresters Life)"
+  "humania",
+  "rbc",
+  "sun life",
+  "uv",
+];
+
+function isAllowedCarrier(companyName: string) {
+  // Pad with spaces so single-word keywords (e.g. "rbc", "uv") only match
+  // whole words, not substrings of an unrelated carrier's name.
+  const padded = ` ${companyName.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
+  if (padded.includes(" industrial ") && padded.includes(" alliance ")) return true;
+  return ALLOWED_CARRIER_KEYWORDS.some((keyword) => padded.includes(` ${keyword} `));
+}
+
 type QuotePayload = {
   birthDay?: string | number;
   birthMonth?: string | number;
@@ -209,8 +236,11 @@ export async function POST(request: Request) {
     // Compulife nests results under Compulife_ComparisonResults.Compulife_Results,
     // sorted cheapest-first (SortOverride1: "A"), with "Compulife_"-prefixed field
     // names on each row. It compares against ~15 carriers per request.
-    const results = data?.Compulife_ComparisonResults?.Compulife_Results;
-    const top = Array.isArray(results) ? results[0] : undefined;
+    const rawResults = data?.Compulife_ComparisonResults?.Compulife_Results;
+    const results = Array.isArray(rawResults)
+      ? rawResults.filter((row: { Compulife_company?: string }) => isAllowedCarrier(row.Compulife_company ?? ""))
+      : [];
+    const top = results[0];
 
     if (!top) {
       return NextResponse.json(buildMockResult(faceAmount, termCategory));

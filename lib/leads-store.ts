@@ -136,7 +136,36 @@ export async function writeLeads(leads: Lead[]) {
   await writeFile(STORE_FILE, JSON.stringify(leads, null, 2), "utf8");
 }
 
-export async function addLead(input: LeadInput): Promise<Lead> {
+// Someone comparing coverage amounts/terms on the calculator resubmits the
+// form every time they change an input, each one a fresh quote result but
+// the same person. Collapse those into the same lead instead of flooding
+// the CRM with duplicate cards, by refreshing this lead's quote-related
+// fields when the same email re-submits shortly after. Manual staff entries
+// (no email-window check applies there) and Meta webhook leads (already
+// deduped by meta_leadgen_id above) are unaffected.
+const RESUBMIT_WINDOW_MS = 30 * 60 * 1000;
+
+function quoteRefreshFields(base: ReturnType<typeof buildLeadBase>) {
+  return {
+    product_interest: base.product_interest,
+    company_name: base.company_name,
+    insurer_product_name: base.insurer_product_name,
+    quote_results: base.quote_results,
+    date_of_birth: base.date_of_birth,
+    smoker: base.smoker,
+    message: base.message,
+    utm_source: base.utm_source,
+    utm_medium: base.utm_medium,
+    utm_campaign: base.utm_campaign,
+    utm_content: base.utm_content,
+    gclid: base.gclid,
+    fbclid: base.fbclid,
+    landing_url: base.landing_url,
+    referrer: base.referrer,
+  };
+}
+
+function buildLeadBase(input: LeadInput) {
   const source = input.source ?? "organic";
   const initialStatus: LeadStatus =
     source === "manual" ? "manual_entry" : source === "meta_lead_ads" ? "meta_lead" : "new";
@@ -176,6 +205,11 @@ export async function addLead(input: LeadInput): Promise<Lead> {
     meta_adset_name: input.meta_adset_name ?? null,
     meta_ad_name: input.meta_ad_name ?? null,
   };
+  return base;
+}
+
+export async function addLead(input: LeadInput): Promise<Lead> {
+  const base = buildLeadBase(input);
 
   if (supabase) {
     // Meta webhook retries and daily backfill overlaps send the same
@@ -188,6 +222,28 @@ export async function addLead(input: LeadInput): Promise<Lead> {
         .eq("meta_leadgen_id", base.meta_leadgen_id)
         .maybeSingle();
       if (existing) return existing as Lead;
+    }
+
+    if (base.source !== "manual" && base.email) {
+      const since = new Date(Date.now() - RESUBMIT_WINDOW_MS).toISOString();
+      const { data: recent } = await supabase
+        .from("leads")
+        .select("*")
+        .ilike("email", base.email)
+        .eq("archived", false)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (recent) {
+        const { data: updated, error: updateError } = await supabase
+          .from("leads")
+          .update(quoteRefreshFields(base))
+          .eq("id", recent.id)
+          .select()
+          .single();
+        if (!updateError && updated) return updated as Lead;
+      }
     }
 
     const { count } = await supabase
@@ -219,6 +275,21 @@ export async function addLead(input: LeadInput): Promise<Lead> {
   if (base.meta_leadgen_id) {
     const existing = leads.find((lead) => lead.meta_leadgen_id === base.meta_leadgen_id);
     if (existing) return existing;
+  }
+
+  if (base.source !== "manual" && base.email) {
+    const sinceTs = Date.now() - RESUBMIT_WINDOW_MS;
+    const recent = leads.find(
+      (lead) =>
+        !lead.archived &&
+        lead.email.toLowerCase() === base.email.toLowerCase() &&
+        new Date(lead.created_at).getTime() >= sinceTs,
+    );
+    if (recent) {
+      const updatedLead: Lead = { ...recent, ...quoteRefreshFields(base) };
+      await writeLeads(leads.map((lead) => (lead.id === recent.id ? updatedLead : lead)));
+      return updatedLead;
+    }
   }
 
   const lead: Lead = {

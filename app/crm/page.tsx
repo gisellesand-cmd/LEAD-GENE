@@ -75,13 +75,7 @@ function LeadCard({
         className="block w-full pr-6 text-left"
       >
         <p className="font-semibold">{lead.full_name}</p>
-        <p className="mt-1 text-sm text-[#6b675d]">{lead.product_interest}</p>
-        {lead.company_name ? (
-          <p className="mt-1 text-sm font-medium text-[#4b5b41]">
-            <span className="font-semibold">Quoter:</span> {lead.company_name}
-          </p>
-        ) : null}
-        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8a5f]">{sourceLabel[lead.source]}</p>
+        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8a5f]">{sourceLabel[lead.source]}</p>
       </button>
       <button
         type="button"
