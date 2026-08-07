@@ -32,6 +32,8 @@ export type Lead = {
   company_name: string | null;
   insurer_product_name: string | null;
   quote_results: CarrierQuote[] | null;
+  date_of_birth: string | null;
+  smoker: boolean | null;
   message: string;
   consent_casl: boolean;
   utm_source: string | null;
@@ -66,6 +68,8 @@ export type LeadInput = {
   company_name?: string | null;
   insurer_product_name?: string | null;
   quote_results?: CarrierQuote[] | null;
+  date_of_birth?: string | null;
+  smoker?: boolean | null;
   message?: string;
   consent?: boolean;
   source?: LeadSource;
@@ -146,6 +150,8 @@ export async function addLead(input: LeadInput): Promise<Lead> {
     company_name: input.company_name?.trim() || null,
     insurer_product_name: input.insurer_product_name?.trim() || null,
     quote_results: input.quote_results ?? null,
+    date_of_birth: input.date_of_birth ?? null,
+    smoker: input.smoker ?? null,
     message: input.message?.trim() ?? "",
     consent_casl: Boolean(input.consent),
     utm_source: input.utm_source ?? null,

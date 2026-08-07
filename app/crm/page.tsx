@@ -144,7 +144,16 @@ function StageColumn({
 }
 
 function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (lead: Lead) => void }) {
-  const [form, setForm] = useState({ fullName: "", email: "", phone: "", product: "", message: "", consent: false });
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    product: "",
+    date_of_birth: "",
+    smoker: "",
+    message: "",
+    consent: false,
+  });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -162,7 +171,12 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, source: "manual" }),
+        body: JSON.stringify({
+          ...form,
+          date_of_birth: form.date_of_birth || null,
+          smoker: form.smoker === "" ? null : form.smoker === "Y",
+          source: "manual",
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save lead.");
@@ -220,6 +234,29 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
             className="w-full rounded-xl border border-[#d4cdbd] px-3 py-2 text-sm"
           />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-[#4b4a47]">Date of birth</label>
+          <input
+            type="date"
+            value={form.date_of_birth}
+            onChange={(e) => setForm((f) => ({ ...f, date_of_birth: e.target.value }))}
+            className="w-full rounded-xl border border-[#d4cdbd] px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-[#4b4a47]">Smoker / nicotine use</label>
+          <select
+            value={form.smoker}
+            onChange={(e) => setForm((f) => ({ ...f, smoker: e.target.value }))}
+            className="w-full rounded-xl border border-[#d4cdbd] px-3 py-2 text-sm"
+          >
+            <option value="">Unknown</option>
+            <option value="N">Non-smoker / No nicotine use</option>
+            <option value="Y">Smoker / Nicotine user</option>
+          </select>
         </div>
 
         <div className="space-y-1">
@@ -705,6 +742,14 @@ export default function CRMPage() {
                   <p><strong>Email:</strong> {selectedLead.email}</p>
                   <p className="mt-2"><strong>Phone:</strong> {selectedLead.phone}</p>
                   <p className="mt-2"><strong>Product:</strong> {selectedLead.product_interest}</p>
+                  {selectedLead.date_of_birth ? (
+                    <p className="mt-2"><strong>Date of birth:</strong> {selectedLead.date_of_birth}</p>
+                  ) : null}
+                  {selectedLead.smoker !== null ? (
+                    <p className="mt-2">
+                      <strong>Smoker:</strong> {selectedLead.smoker ? "Yes" : "No"}
+                    </p>
+                  ) : null}
                   {selectedLead.company_name ? (
                     <p className="mt-2">
                       <strong>Quoter:</strong> {selectedLead.company_name}

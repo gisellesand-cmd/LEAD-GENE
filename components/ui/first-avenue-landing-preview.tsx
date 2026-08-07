@@ -207,6 +207,7 @@ export default function FirstAvenueLandingPreview() {
 
       const attribution = readAttribution();
       const termLabel = termOptions.find((option) => option.value === form.termCategory)?.label ?? "";
+      const dateOfBirth = `${form.birthYear.padStart(4, "0")}-${form.birthMonth.padStart(2, "0")}-${form.birthDay.padStart(2, "0")}`;
       await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -218,6 +219,8 @@ export default function FirstAvenueLandingPreview() {
           company_name: quoteData.companyName,
           insurer_product_name: quoteData.productName,
           quote_results: quoteData.allQuotes,
+          date_of_birth: dateOfBirth,
+          smoker: form.smoker === "Y",
           message: `Province: ${form.province}. Estimated premium: ${quoteData.monthlyPremium}/month with ${quoteData.companyName} (${quoteData.productName}).`,
           consent: form.consent,
           ...attribution,

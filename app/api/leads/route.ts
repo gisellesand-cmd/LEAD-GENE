@@ -68,6 +68,8 @@ export async function POST(request: Request) {
             typeof (quote as CarrierQuote).monthlyPremium === "string",
         )
       : null;
+    const dateOfBirth = typeof body?.date_of_birth === "string" && body.date_of_birth.trim() ? body.date_of_birth.trim() : null;
+    const smoker = typeof body?.smoker === "boolean" ? body.smoker : null;
     const consent = Boolean(body?.consent);
 
     if (!fullName || !email || !consent) {
@@ -86,6 +88,8 @@ export async function POST(request: Request) {
       company_name: companyName,
       insurer_product_name: insurerProductName,
       quote_results: quoteResults,
+      date_of_birth: dateOfBirth,
+      smoker,
       message: typeof body?.message === "string" ? body.message : "",
       consent,
       source: body?.source === "manual" ? "manual" : classifySource({ utm_source, gclid, fbclid }),
