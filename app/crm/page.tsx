@@ -731,6 +731,9 @@ export default function CRMPage() {
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#4b5b41]">Lead details</p>
                   <h2 className="mt-2 text-2xl font-semibold">{selectedLead.full_name}</h2>
+                  <p className="mt-1 text-sm text-[#6b675d]">
+                    Received {new Date(selectedLead.created_at).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-[#f8f3e7] p-4 text-sm text-[#4b4a47]">
                   <p><strong>Email:</strong> {selectedLead.email}</p>
