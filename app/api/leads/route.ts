@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { addLead, readLeads, type CarrierQuote, type LeadSource } from "@/lib/leads-store";
 import { createClient } from "@/lib/supabase/server";
+import { queueLeadEmails } from "@/lib/email";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -102,6 +103,10 @@ export async function POST(request: Request) {
       landing_url: typeof body?.landing_url === "string" ? body.landing_url : null,
       referrer: typeof body?.referrer === "string" ? body.referrer : null,
     });
+
+    // Confirmation only for public landing submissions (PRD Section 13) —
+    // not for staff-added manual entries.
+    after(() => queueLeadEmails(lead, { sendConfirmation: lead.source !== "manual" }));
 
     return NextResponse.json({ ok: true, lead });
   } catch (error) {

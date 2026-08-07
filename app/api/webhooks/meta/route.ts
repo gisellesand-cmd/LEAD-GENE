@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse, after } from "next/server";
 import { addLead } from "@/lib/leads-store";
+import { queueLeadEmails } from "@/lib/email";
 
 // Receives native Meta/Instagram Lead Ads submissions — forms filled out
 // inside Facebook/Instagram itself, not on our landing page. This is
@@ -74,7 +75,7 @@ async function processLeadgenChange(change: LeadgenChange) {
     const data = await response.json();
     const fieldData: MetaFieldData[] = data.field_data ?? [];
 
-    await addLead({
+    const lead = await addLead({
       fullName: fieldValue(fieldData, "full_name", "name") || "Unknown",
       email: fieldValue(fieldData, "email"),
       phone: fieldValue(fieldData, "phone_number", "phone"),
@@ -93,6 +94,10 @@ async function processLeadgenChange(change: LeadgenChange) {
       // call (ads_read) per ad_id — deferred until that permission is
       // granted in App Review (PRD Section 8, "Enrichment").
     });
+
+    // No confirmation email — this lead never visited the landing page, only
+    // the internal team notification applies (PRD Section 13).
+    await queueLeadEmails(lead, { sendConfirmation: false });
   } catch (error) {
     console.error("Error processing Meta lead", leadgenId, error);
   }

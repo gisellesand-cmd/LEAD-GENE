@@ -50,6 +50,7 @@ export type Lead = {
   last_contacted_at: string | null;
   pipeline_order: number;
   archived: boolean;
+  email_opt_out: boolean;
   meta_leadgen_id: string | null;
   meta_form_id: string | null;
   meta_ad_id: string | null;
@@ -196,6 +197,7 @@ function buildLeadBase(input: LeadInput) {
     assigned_to: null,
     last_contacted_at: null,
     archived: false,
+    email_opt_out: false,
     meta_leadgen_id: input.meta_leadgen_id ?? null,
     meta_form_id: input.meta_form_id ?? null,
     meta_ad_id: input.meta_ad_id ?? null,
