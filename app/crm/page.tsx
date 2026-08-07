@@ -682,19 +682,19 @@ export default function CRMPage() {
         <div className="grid gap-4 md:grid-cols-4">
           <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-4 shadow-sm">
             <p className="text-sm text-[#6b675d]">Total leads</p>
-            <p className="mt-2 text-2xl font-semibold">{leads.length}</p>
+            <p className="mt-2 text-2xl font-semibold">{leads.filter((lead) => !lead.archived).length}</p>
           </div>
           <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-4 shadow-sm">
             <p className="text-sm text-[#6b675d]">New</p>
-            <p className="mt-2 text-2xl font-semibold">{leads.filter((lead) => lead.status === "new").length}</p>
+            <p className="mt-2 text-2xl font-semibold">{leads.filter((lead) => lead.status === "new" && !lead.archived).length}</p>
           </div>
           <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-4 shadow-sm">
             <p className="text-sm text-[#6b675d]">Qualified</p>
-            <p className="mt-2 text-2xl font-semibold">{leads.filter((lead) => lead.status === "qualified").length}</p>
+            <p className="mt-2 text-2xl font-semibold">{leads.filter((lead) => lead.status === "qualified" && !lead.archived).length}</p>
           </div>
           <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-4 shadow-sm">
             <p className="text-sm text-[#6b675d]">Closed won</p>
-            <p className="mt-2 text-2xl font-semibold">{leads.filter((lead) => lead.status === "closed_won").length}</p>
+            <p className="mt-2 text-2xl font-semibold">{leads.filter((lead) => lead.status === "closed_won" && !lead.archived).length}</p>
           </div>
         </div>
 
