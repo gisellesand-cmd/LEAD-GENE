@@ -24,6 +24,11 @@ type QuoteResult = {
   allQuotes: CarrierQuote[];
 };
 
+function trackMetaLead() {
+  const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
+  fbq?.("track", "Lead");
+}
+
 const termOptions = [
   { value: "3", label: "10 years" },
   { value: "4", label: "15 years" },
@@ -208,7 +213,7 @@ export default function FirstAvenueLandingPreview() {
       const attribution = readAttribution();
       const termLabel = termOptions.find((option) => option.value === form.termCategory)?.label ?? "";
       const dateOfBirth = `${form.birthYear.padStart(4, "0")}-${form.birthMonth.padStart(2, "0")}-${form.birthDay.padStart(2, "0")}`;
-      await fetch("/api/leads", {
+      const leadResponse = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -226,6 +231,9 @@ export default function FirstAvenueLandingPreview() {
           ...attribution,
         }),
       });
+      if (leadResponse.ok) {
+        trackMetaLead();
+      }
       setLeadSaved(true);
     } catch (error) {
       setQuoteError(error instanceof Error ? error.message : "We could not calculate your quote.");
