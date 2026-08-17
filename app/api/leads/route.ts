@@ -71,6 +71,8 @@ export async function POST(request: Request) {
       : null;
     const dateOfBirth = typeof body?.date_of_birth === "string" && body.date_of_birth.trim() ? body.date_of_birth.trim() : null;
     const smoker = typeof body?.smoker === "boolean" ? body.smoker : null;
+    const sex = body?.sex === "M" || body?.sex === "F" ? body.sex : null;
+    const province = typeof body?.province === "string" && body.province.trim() ? body.province.trim() : null;
     const consent = Boolean(body?.consent);
 
     if (!fullName || !email || !consent) {
@@ -91,6 +93,8 @@ export async function POST(request: Request) {
       quote_results: quoteResults,
       date_of_birth: dateOfBirth,
       smoker,
+      sex,
+      province,
       message: typeof body?.message === "string" ? body.message : "",
       consent,
       source: body?.source === "manual" ? "manual" : classifySource({ utm_source, gclid, fbclid }),

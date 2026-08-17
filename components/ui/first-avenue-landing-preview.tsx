@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, Sparkles, PhoneCall } from "lucide-react";
@@ -163,6 +164,7 @@ export default function FirstAvenueLandingPreview() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState("");
   const [leadSaved, setLeadSaved] = useState(false);
+  const [leadId, setLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     captureAttribution();
@@ -182,6 +184,7 @@ export default function FirstAvenueLandingPreview() {
     setQuoteError("");
     setQuoteResult(null);
     setLeadSaved(false);
+    setLeadId(null);
 
     if (form.company_website.trim() !== "") {
       setLeadSaved(true);
@@ -226,6 +229,8 @@ export default function FirstAvenueLandingPreview() {
           quote_results: quoteData.allQuotes,
           date_of_birth: dateOfBirth,
           smoker: form.smoker === "Y",
+          sex: form.sex,
+          province: form.province,
           message: `Province: ${form.province}. Estimated premium: ${quoteData.monthlyPremium}/month with ${quoteData.companyName} (${quoteData.productName}).`,
           consent: form.consent,
           ...attribution,
@@ -233,6 +238,8 @@ export default function FirstAvenueLandingPreview() {
       });
       if (leadResponse.ok) {
         trackMetaLead();
+        const leadData = await leadResponse.json();
+        setLeadId(leadData?.lead?.id ?? null);
       }
       setLeadSaved(true);
     } catch (error) {
@@ -644,7 +651,7 @@ export default function FirstAvenueLandingPreview() {
                         {quoteResult.topQuotes.map((quote, index) => (
                           <div
                             key={`${quote.companyName}-${index}`}
-                            className="flex items-center justify-between rounded-lg bg-white/70 px-3 py-2"
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2"
                           >
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
@@ -657,7 +664,17 @@ export default function FirstAvenueLandingPreview() {
                               </div>
                               <p className="text-xs text-[#5f7a54]">{quote.productName}</p>
                             </div>
-                            <p className="text-lg font-semibold text-[#5a9150]">{quote.monthlyPremium}/mo</p>
+                            <div className="flex items-center gap-3">
+                              <p className="text-lg font-semibold text-[#5a9150]">{quote.monthlyPremium}/mo</p>
+                              {leadId ? (
+                                <Link
+                                  href={`/apply?leadId=${leadId}&company=${encodeURIComponent(quote.companyName)}&product=${encodeURIComponent(quote.productName)}&premium=${encodeURIComponent(quote.monthlyPremium)}`}
+                                  className="whitespace-nowrap rounded-full bg-[#c7a05f] px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-[#c7a05f]/30 transition hover:-translate-y-0.5 hover:bg-[#af944f]"
+                                >
+                                  Apply Now
+                                </Link>
+                              ) : null}
+                            </div>
                           </div>
                         ))}
                       </div>

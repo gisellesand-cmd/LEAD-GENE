@@ -20,6 +20,105 @@ export type LeadStatus =
   | "meta_lead"
   | "manual_entry";
 
+// Apply Now application, collected on a follow-up page after the client
+// picks one of their 3 quotes. Stored as one jsonb blob (like quote_results)
+// instead of ~40 flat columns. Intentionally excludes banking/PAD info and
+// e-signature — the advisor finishes those manually.
+export type ApplicationData = {
+  personal: {
+    education: string;
+    maritalStatus: string;
+    primaryAddress: { street: string; city: string; province: string; postalCode: string };
+    mailingAddress: {
+      sameAsPrimary: boolean;
+      street: string | null;
+      city: string | null;
+      province: string | null;
+      postalCode: string | null;
+    };
+    identification: { type: string; provinceOfIssue: string; number: string; expiryDate: string };
+    citizenshipStatus: string;
+    countryOfBirth: string;
+    provinceOfBirth: string;
+  };
+  insuranceHistory: {
+    hasCoverageInForceOrPending: boolean;
+    everDeclinedRatedModified: boolean;
+  };
+  financialOccupation: {
+    occupationTitle: string;
+    occupationalDuties: string;
+    employerName: string;
+    employmentStartDate: string;
+    annualEarnedIncomeCad: number;
+    otherIncomeSourcesCad: number;
+    netWorthCanadaCad: number;
+    netWorthForeignCad: number | null;
+    bankruptcyLast5Years: boolean;
+    usCitizenOrTaxResident: boolean;
+    taxResidentOtherThanCanadaUs: boolean;
+  };
+  lifestyle: {
+    lastTobaccoNicotineUse: string;
+    cannabisUse: boolean;
+    nonPrescribedDrugsLast10Years: boolean;
+    highwaySafetyViolationsLast3Years: boolean;
+    hazardousActivities: boolean;
+    pilotOrCrewLast5Years: boolean;
+  };
+  medical: {
+    heightFeet: number;
+    heightInches: number;
+    weightLb: number;
+    hasPhysician: boolean;
+    physicianName: string | null;
+    physicianAddress: string | null;
+    conditions: {
+      heartOrCirculatory: boolean;
+      highBloodPressure: boolean;
+      cancerOrTumor: boolean;
+      diabetes: boolean;
+      hivAids: boolean;
+      mentalHealth: boolean;
+      otherMajorIllness: boolean;
+      noneOfAbove: boolean;
+    };
+    hospitalTestsSurgeryLastYear: boolean;
+    currentlyTakingUnlistedMedication: boolean;
+  };
+  beneficiaries: {
+    primary: Array<{
+      fullName: string;
+      dateOfBirth: string;
+      relationship: string;
+      relationshipOther: string | null;
+      sharePercent: number;
+    }>;
+    wantsContingent: boolean;
+    anyBeneficiaryIsMinor: boolean;
+  };
+  policySpecific: {
+    purpose: string;
+    details: {
+      familyDependentProtection: boolean;
+      incomeReplacement: boolean;
+      mortgageProtection: boolean;
+      debtProtection: boolean;
+      educationFunding: boolean;
+      retirementPlanning: boolean;
+      wealthInvestmentGrowth: boolean;
+    };
+  };
+  hearAboutUs: {
+    google: boolean;
+    socialMedia: boolean;
+    referral: boolean;
+    advertisement: boolean;
+    other: boolean;
+    otherSpecify: string | null;
+  };
+};
+
 export type Lead = {
   id: string;
   created_at: string;
@@ -34,6 +133,13 @@ export type Lead = {
   quote_results: CarrierQuote[] | null;
   date_of_birth: string | null;
   smoker: boolean | null;
+  sex: "M" | "F" | null;
+  province: string | null;
+  application_data: ApplicationData | null;
+  application_submitted_at: string | null;
+  applied_company_name: string | null;
+  applied_product_name: string | null;
+  applied_monthly_premium: string | null;
   message: string;
   consent_casl: boolean;
   utm_source: string | null;
@@ -71,6 +177,8 @@ export type LeadInput = {
   quote_results?: CarrierQuote[] | null;
   date_of_birth?: string | null;
   smoker?: boolean | null;
+  sex?: "M" | "F" | null;
+  province?: string | null;
   message?: string;
   consent?: boolean;
   source?: LeadSource;
@@ -154,6 +262,8 @@ function quoteRefreshFields(base: ReturnType<typeof buildLeadBase>) {
     quote_results: base.quote_results,
     date_of_birth: base.date_of_birth,
     smoker: base.smoker,
+    sex: base.sex,
+    province: base.province,
     message: base.message,
     utm_source: base.utm_source,
     utm_medium: base.utm_medium,
@@ -182,6 +292,13 @@ function buildLeadBase(input: LeadInput) {
     quote_results: input.quote_results ?? null,
     date_of_birth: input.date_of_birth ?? null,
     smoker: input.smoker ?? null,
+    sex: input.sex ?? null,
+    province: input.province ?? null,
+    application_data: null,
+    application_submitted_at: null,
+    applied_company_name: null,
+    applied_product_name: null,
+    applied_monthly_premium: null,
     message: input.message?.trim() ?? "",
     consent_casl: Boolean(input.consent),
     utm_source: input.utm_source ?? null,
@@ -302,6 +419,19 @@ export async function addLead(input: LeadInput): Promise<Lead> {
   };
   await writeLeads([lead, ...leads]);
   return lead;
+}
+
+// Public lookup used by the unauthenticated /apply page — it needs a single
+// lead by id without going through CRM auth (the applicant isn't logged in).
+export async function getLeadById(id: string): Promise<Lead | null> {
+  if (supabase) {
+    const { data, error } = await supabase.from("leads").select("*").eq("id", id).maybeSingle();
+    if (error || !data) return null;
+    return data as Lead;
+  }
+
+  const leads = await readLeads();
+  return leads.find((lead) => lead.id === id) ?? null;
 }
 
 export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead | null> {

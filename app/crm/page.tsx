@@ -114,11 +114,11 @@ function StageColumn({
       ref={setNodeRef}
       className={`rounded-[1.5rem] border p-4 shadow-sm transition ${isOver ? "border-[#1d4d31] bg-[#f7f2e5]" : "border-[#e0d7c3] bg-white"}`}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold">{stage.label}</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">{stage.label}</h2>
         <span className="rounded-full bg-[#f5efe0] px-3 py-1 text-xs font-semibold text-[#4b5b41]">{leads.length}</span>
       </div>
-      <div className="space-y-3">
+      <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
         {leads.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#ddd2bf] p-3 text-sm text-[#7b776d]">No leads yet</p>
         ) : (
@@ -745,39 +745,52 @@ export default function CRMPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-5">
-              {stages.map((stage) => (
-                <StageColumn
-                  key={stage.key}
-                  stage={stage}
-                  leads={leads.filter((lead) => lead.status === stage.key && !lead.archived)}
-                  selectedLeadId={selectedLeadId}
-                  onSelect={setSelectedLeadId}
-                  onDelete={(id) => setPendingDeleteId(id)}
-                />
-              ))}
-              <div className="flex items-center justify-center rounded-[1.5rem] border border-dashed border-[#ddd2bf] bg-[#faf7f0] p-4">
-                <button
-                  type="button"
-                  onClick={() => setShowDeletedModal(true)}
-                  className="rounded-full border border-[#d2c8b5] bg-white px-4 py-2 text-sm font-medium"
-                >
-                  View deleted{archivedLeads.length > 0 ? ` (${archivedLeads.length})` : ""}
-                </button>
-              </div>
+        <div className="grid gap-6 xl:grid-cols-[1.6fr_0.8fr] xl:items-start">
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#4b5b41]">Pipeline</p>
+              <button
+                type="button"
+                onClick={() => setShowDeletedModal(true)}
+                className="rounded-full border border-[#d2c8b5] bg-white px-4 py-1.5 text-xs font-medium"
+              >
+                View deleted{archivedLeads.length > 0 ? ` (${archivedLeads.length})` : ""}
+              </button>
             </div>
-          </DndContext>
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                {stages.map((stage) => (
+                  <StageColumn
+                    key={stage.key}
+                    stage={stage}
+                    leads={leads.filter((lead) => lead.status === stage.key && !lead.archived)}
+                    selectedLeadId={selectedLeadId}
+                    onSelect={setSelectedLeadId}
+                    onDelete={(id) => setPendingDeleteId(id)}
+                  />
+                ))}
+              </div>
+            </DndContext>
+          </div>
 
-          <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-5 shadow-sm">
+          <div className="rounded-[1.5rem] border border-[#e0d7c3] bg-white p-5 shadow-sm xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
             {loading ? (
               <p className="text-sm text-[#6b675d]">Loading leads...</p>
             ) : selectedLead ? (
               <div className="space-y-4">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#4b5b41]">Lead details</p>
-                  <h2 className="mt-2 text-2xl font-semibold">{selectedLead.full_name}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <h2 className="text-2xl font-semibold">{selectedLead.full_name}</h2>
+                    {selectedLead.application_submitted_at ? (
+                      <span className="whitespace-nowrap rounded-full bg-[#c7a05f] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                        Applied —{" "}
+                        {new Date(selectedLead.application_submitted_at).toLocaleDateString("en-CA", {
+                          dateStyle: "medium",
+                        })}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-1 text-sm text-[#6b675d]">
                     Received {new Date(selectedLead.created_at).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })}
                   </p>
@@ -860,6 +873,177 @@ export default function CRMPage() {
                           <p className="font-semibold text-[#4b5b41]">{quote.monthlyPremium}/mo</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                ) : null}
+                {selectedLead.application_data ? (
+                  <div>
+                    <p className="text-sm font-semibold">Application</p>
+                    <div className="mt-2 space-y-4 rounded-xl border border-[#ebe3d2] bg-[#faf7f0] p-3 text-sm">
+                      {selectedLead.applied_company_name ? (
+                        <p>
+                          <strong>Applying for:</strong> {selectedLead.applied_company_name}
+                          {selectedLead.applied_product_name ? ` (${selectedLead.applied_product_name})` : ""}
+                          {selectedLead.applied_monthly_premium ? ` — ${selectedLead.applied_monthly_premium}/mo` : ""}
+                        </p>
+                      ) : null}
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">Personal</p>
+                        <p><strong>Education:</strong> {selectedLead.application_data.personal.education || "—"}</p>
+                        <p><strong>Marital status:</strong> {selectedLead.application_data.personal.maritalStatus || "—"}</p>
+                        <p>
+                          <strong>Address:</strong> {selectedLead.application_data.personal.primaryAddress.street},{" "}
+                          {selectedLead.application_data.personal.primaryAddress.city},{" "}
+                          {selectedLead.application_data.personal.primaryAddress.province}{" "}
+                          {selectedLead.application_data.personal.primaryAddress.postalCode}
+                        </p>
+                        <p>
+                          <strong>ID:</strong> {selectedLead.application_data.personal.identification.type || "—"} (
+                          {selectedLead.application_data.personal.identification.provinceOfIssue}) #
+                          {selectedLead.application_data.personal.identification.number}, exp.{" "}
+                          {selectedLead.application_data.personal.identification.expiryDate}
+                        </p>
+                        <p>
+                          <strong>Citizenship/residency:</strong>{" "}
+                          {selectedLead.application_data.personal.citizenshipStatus || "—"}
+                        </p>
+                        <p>
+                          <strong>Born in:</strong> {selectedLead.application_data.personal.provinceOfBirth || "—"},{" "}
+                          {selectedLead.application_data.personal.countryOfBirth}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">Insurance history</p>
+                        <p>
+                          <strong>Existing coverage:</strong>{" "}
+                          {selectedLead.application_data.insuranceHistory.hasCoverageInForceOrPending ? "Yes" : "No"}
+                        </p>
+                        <p>
+                          <strong>Ever declined/rated/modified:</strong>{" "}
+                          {selectedLead.application_data.insuranceHistory.everDeclinedRatedModified ? "Yes" : "No"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">Financial & occupation</p>
+                        <p>
+                          <strong>Occupation:</strong> {selectedLead.application_data.financialOccupation.occupationTitle || "—"}{" "}
+                          at {selectedLead.application_data.financialOccupation.employerName || "—"} (since{" "}
+                          {selectedLead.application_data.financialOccupation.employmentStartDate || "—"})
+                        </p>
+                        <p>
+                          <strong>Income:</strong> ${selectedLead.application_data.financialOccupation.annualEarnedIncomeCad.toLocaleString()} +{" "}
+                          ${selectedLead.application_data.financialOccupation.otherIncomeSourcesCad.toLocaleString()} other
+                        </p>
+                        <p>
+                          <strong>Net worth:</strong> ${selectedLead.application_data.financialOccupation.netWorthCanadaCad.toLocaleString()} CA
+                          {selectedLead.application_data.financialOccupation.netWorthForeignCad
+                            ? ` / $${selectedLead.application_data.financialOccupation.netWorthForeignCad.toLocaleString()} foreign`
+                            : ""}
+                        </p>
+                        <p>
+                          <strong>Bankruptcy (5y):</strong>{" "}
+                          {selectedLead.application_data.financialOccupation.bankruptcyLast5Years ? "Yes" : "No"} ·{" "}
+                          <strong>US tax resident:</strong>{" "}
+                          {selectedLead.application_data.financialOccupation.usCitizenOrTaxResident ? "Yes" : "No"} ·{" "}
+                          <strong>Other tax residency:</strong>{" "}
+                          {selectedLead.application_data.financialOccupation.taxResidentOtherThanCanadaUs ? "Yes" : "No"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">Lifestyle</p>
+                        <p>
+                          <strong>Last tobacco/nicotine use:</strong>{" "}
+                          {selectedLead.application_data.lifestyle.lastTobaccoNicotineUse || "—"}
+                        </p>
+                        <p>
+                          <strong>Cannabis:</strong> {selectedLead.application_data.lifestyle.cannabisUse ? "Yes" : "No"} ·{" "}
+                          <strong>Non-prescribed drugs (10y):</strong>{" "}
+                          {selectedLead.application_data.lifestyle.nonPrescribedDrugsLast10Years ? "Yes" : "No"}
+                        </p>
+                        <p>
+                          <strong>Highway violations (3y):</strong>{" "}
+                          {selectedLead.application_data.lifestyle.highwaySafetyViolationsLast3Years ? "Yes" : "No"} ·{" "}
+                          <strong>Hazardous activities:</strong>{" "}
+                          {selectedLead.application_data.lifestyle.hazardousActivities ? "Yes" : "No"} ·{" "}
+                          <strong>Pilot/crew (5y):</strong>{" "}
+                          {selectedLead.application_data.lifestyle.pilotOrCrewLast5Years ? "Yes" : "No"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">Medical</p>
+                        <p>
+                          <strong>Height:</strong> {selectedLead.application_data.medical.heightFeet}
+                          {"'"}
+                          {selectedLead.application_data.medical.heightInches}
+                          {"\""} · <strong>Weight:</strong> {selectedLead.application_data.medical.weightLb} lb
+                        </p>
+                        <p>
+                          <strong>Physician:</strong> {selectedLead.application_data.medical.hasPhysician ? "Yes" : "No"}
+                          {selectedLead.application_data.medical.hasPhysician
+                            ? ` — ${selectedLead.application_data.medical.physicianName ?? ""} (${selectedLead.application_data.medical.physicianAddress ?? ""})`
+                            : ""}
+                        </p>
+                        <p>
+                          <strong>Conditions:</strong>{" "}
+                          {Object.entries(selectedLead.application_data.medical.conditions)
+                            .filter(([, value]) => value)
+                            .map(([key]) => key)
+                            .join(", ") || "None reported"}
+                        </p>
+                        <p>
+                          <strong>Hospital/tests/surgery (past year):</strong>{" "}
+                          {selectedLead.application_data.medical.hospitalTestsSurgeryLastYear ? "Yes" : "No"} ·{" "}
+                          <strong>Unlisted medication:</strong>{" "}
+                          {selectedLead.application_data.medical.currentlyTakingUnlistedMedication ? "Yes" : "No"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">Beneficiaries</p>
+                        {selectedLead.application_data.beneficiaries.primary.map((beneficiary, index) => (
+                          <p key={`beneficiary-${index}`}>
+                            <strong>{beneficiary.fullName || "—"}</strong> (
+                            {beneficiary.relationship === "Other" ? beneficiary.relationshipOther : beneficiary.relationship}),{" "}
+                            {beneficiary.sharePercent}% — born {beneficiary.dateOfBirth}
+                          </p>
+                        ))}
+                        <p>
+                          <strong>Contingent beneficiary wanted:</strong>{" "}
+                          {selectedLead.application_data.beneficiaries.wantsContingent ? "Yes" : "No"} ·{" "}
+                          <strong>Minor beneficiary:</strong>{" "}
+                          {selectedLead.application_data.beneficiaries.anyBeneficiaryIsMinor ? "Yes" : "No"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">Policy purpose</p>
+                        <p><strong>Purpose:</strong> {selectedLead.application_data.policySpecific.purpose}</p>
+                        <p>
+                          <strong>Details:</strong>{" "}
+                          {Object.entries(selectedLead.application_data.policySpecific.details)
+                            .filter(([, value]) => value)
+                            .map(([key]) => key)
+                            .join(", ") || "No additional details selected"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-semibold text-[#4b4a47]">How they heard about us</p>
+                        <p>
+                          {Object.entries(selectedLead.application_data.hearAboutUs)
+                            .filter(([key, value]) => key !== "otherSpecify" && value)
+                            .map(([key]) => key)
+                            .join(", ") || "Not specified"}
+                          {selectedLead.application_data.hearAboutUs.otherSpecify
+                            ? ` (${selectedLead.application_data.hearAboutUs.otherSpecify})`
+                            : ""}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : null}

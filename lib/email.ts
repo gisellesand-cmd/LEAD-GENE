@@ -21,7 +21,7 @@ const supabase: SupabaseClient | null =
     ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     : null;
 
-type EmailType = "internal_notification" | "lead_confirmation";
+type EmailType = "internal_notification" | "lead_confirmation" | "application_submitted";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -147,4 +147,33 @@ export async function queueLeadEmails(lead: Lead, options: { sendConfirmation: b
     sendInternalNotification(lead),
     options.sendConfirmation ? sendLeadConfirmation(lead) : Promise.resolve(),
   ]);
+}
+
+async function sendApplicationSubmittedNotification(lead: Lead) {
+  if (!resend || NOTIFY_EMAILS.length === 0) return;
+
+  const carrierLine = lead.applied_company_name
+    ? `Applying for: ${lead.applied_company_name}${lead.applied_product_name ? ` (${lead.applied_product_name})` : ""}${lead.applied_monthly_premium ? ` — ${lead.applied_monthly_premium}/mo` : ""}\n`
+    : "";
+
+  await sendWithRetry(lead.id, "application_submitted", () =>
+    resend.emails.send({
+      from: RESEND_FROM_EMAIL,
+      to: NOTIFY_EMAILS,
+      subject: `Application submitted: ${lead.full_name}`,
+      text:
+        `${lead.full_name} just submitted a full application.\n\n` +
+        `Name: ${lead.full_name}\n` +
+        `Email: ${lead.email}\n` +
+        `Phone: ${lead.phone}\n` +
+        carrierLine +
+        `Time: ${new Date(lead.application_submitted_at ?? lead.created_at).toLocaleString("en-CA", { timeZone: "America/Edmonton" })}\n\n` +
+        `View full details in the CRM.\n`,
+    }),
+  );
+}
+
+// Called right after an Apply Now submission is persisted.
+export async function queueApplicationEmail(lead: Lead) {
+  await sendApplicationSubmittedNotification(lead);
 }
